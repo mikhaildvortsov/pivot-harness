@@ -2,7 +2,7 @@
 theme = Catppuccin Macchiato
 # The backdrop color follows the chosen gradient (/gradient rewrites this line).
 # BACKGROUND-BEGIN
-background = #1a1015
+background = #0b0f14
 # BACKGROUND-END
 # Neon-glass identity: a geometric monospace (JetBrains Mono), slightly airy lines.
 font-family = JetBrainsMono Nerd Font

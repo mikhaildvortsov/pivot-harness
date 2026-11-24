@@ -43,8 +43,19 @@ const stopsOf = (name: string): Rgb[] => {
 	return s;
 };
 
+/** Rainbow: a full turn of the hue wheel per half of the position range, so any window of the gradient (text, border, bar) shows the whole spectrum. */
+const hueHex = (h: number) => {
+	const a = 0.85 * Math.min(0.64, 1 - 0.64);
+	const f = (n: number) => {
+		const k = (n + h / 30) % 12;
+		return Math.round(255 * (0.64 - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))));
+	};
+	return "#" + [f(0), f(8), f(4)].map((v) => v.toString(16).padStart(2, "0")).join("");
+};
+
 /** Color of the active gradient at position p in [0, 1]. */
 export function gradientColor(p: number, name = currentGradient()): Rgb {
+	if (name === "rainbow") return parseColor(hueHex((Math.min(1, Math.max(0, p)) * 720) % 360));
 	const s = stopsOf(name);
 	const x = Math.min(0.9999, Math.max(0, p)) * (s.length - 1);
 	const i = Math.floor(x);
@@ -71,7 +82,7 @@ export function syncShader(name = currentGradient()): boolean {
 	const preset = GRADIENTS[name]!;
 	// the shader always has 7 evenly spaced stops; 3-stop presets are resampled with the same interpolation the TUI uses
 	const samples = Array.from({ length: 7 }, (_, i) => {
-		const c = colorToRgb(gradientColor(i / 6, name));
+		const c = colorToRgb(gradientColor((i / 6) * (name === "rainbow" ? 0.5 : 1), name));
 		return [c.r, c.g, c.b].map((v) => (v / 255).toFixed(3)).join(", ");
 	});
 	let changed = false;

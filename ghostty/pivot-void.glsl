@@ -14,17 +14,17 @@ float vnoise(vec2 p) {
 }
 
 // GRADIENT-BEGIN (rewritten by /gradient in Pivot so the shader matches the TUI)
-const vec3 G0 = vec3(0.984, 0.749, 0.141);
-const vec3 G1 = vec3(1.000, 0.647, 0.325);
-const vec3 G2 = vec3(1.000, 0.549, 0.416);
-const vec3 G3 = vec3(0.984, 0.443, 0.522);
-const vec3 G4 = vec3(0.945, 0.447, 0.698);
-const vec3 G5 = vec3(0.871, 0.475, 0.859);
-const vec3 G6 = vec3(0.753, 0.518, 0.988);
+const vec3 G0 = vec3(0.945, 0.333, 0.333);
+const vec3 G1 = vec3(0.945, 0.945, 0.333);
+const vec3 G2 = vec3(0.333, 0.945, 0.333);
+const vec3 G3 = vec3(0.333, 0.945, 0.945);
+const vec3 G4 = vec3(0.333, 0.333, 0.945);
+const vec3 G5 = vec3(0.945, 0.333, 0.945);
+const vec3 G6 = vec3(0.945, 0.333, 0.333);
 // GRADIENT-END
 // BACKDROP-BEGIN (rewritten by /gradient: nebula strength and star density of the chosen gradient)
-const float NEB = 0.050;
-const float STAR_T = 0.996;
+const float NEB = 0.045;
+const float STAR_T = 0.993;
 // BACKDROP-END
 vec3 aurora(float t) {
     t = clamp(t, 0.0, 1.0);
