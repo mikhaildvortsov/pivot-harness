@@ -63,21 +63,17 @@ export default function (pi: ExtensionAPI) {
 							render(width: number): string[] {
 								animate(tui, true, 50);
 								const rows = tui.terminal.rows;
-								const now = Date.now();
+								let now = Date.now();
 								if (!ready && ((now - born > 1000 && now - lastStall > 600) || now - born > 4000)) {
+									// Startup is calm: before the animation starts, run every stage of the intro once offscreen (digits, π reveal and spin,
+									// wordmark) so the first real frames hit warm code and caches instead of pausing mid-intro. The first frame stays on screen.
+									for (let w = 0; w <= 5; w += 0.35) bootFrame(theme, width, rows, w, "");
 									ready = true;
-									last = now;
+									now = last = prevTick = Date.now();
 								}
 								if (ready && last) clock += Math.min(now - last, 60) / 1000;
 								last = now;
 								const t = clock;
-								if (!ready) {
-									// still holding the first frame: run the real frames offscreen so code and caches are warm when the animation starts.
-									// Time spent here is not counted as a stall of the rest of the startup.
-									const w0 = Date.now();
-									bootFrame(theme, width, rows, ((w0 - born) / 1000) * 1.5, "");
-									prevTick += Date.now() - w0;
-								}
 								return bootFrame(theme, width, rows, t, "начните вводить команду или задачу");
 							},
 						};
