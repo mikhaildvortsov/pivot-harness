@@ -50,7 +50,7 @@ export default function (pi: ExtensionAPI) {
 						// instead of freezing it and fast-forwarding to catch up.
 						let clock = offset, last = 0, ready = offset > 0;
 						const born = Date.now();
-						let lastStall = born, prevTick = born;
+						let lastStall = born, prevTick = born, warm = 0;
 						const monitor = setInterval(() => {
 							const n = Date.now();
 							if (n - prevTick > 45) lastStall = n;
@@ -64,12 +64,19 @@ export default function (pi: ExtensionAPI) {
 								animate(tui, true, 50);
 								const rows = tui.terminal.rows;
 								let now = Date.now();
-								if (!ready && ((now - born > 1000 && now - lastStall > 600) || now - born > 4000)) {
-									// Startup is calm: before the animation starts, run every stage of the intro once offscreen (digits, π reveal and spin,
-									// wordmark) so the first real frames hit warm code and caches instead of pausing mid-intro. The first frame stays on screen.
-									for (let w = 0; w <= 5; w += 0.35) bootFrame(theme, width, rows, w, "");
-									ready = true;
-									now = last = prevTick = Date.now();
+								if (!ready) {
+									// Holding the first frame while startup finishes. Meanwhile one intro frame per tick is rendered offscreen, covering every
+									// stage (digits, π reveal and spin, wordmark), so the real animation hits warm code instead of pausing mid-intro.
+									// The time spent on it is not counted as a stall of the rest of the startup.
+									if (warm <= 12) {
+										bootFrame(theme, width, rows, warm * 0.4, "");
+										warm++;
+										prevTick += Date.now() - now;
+									}
+									if (warm > 12 && ((now - born > 500 && now - lastStall > 350) || now - born > 3500)) {
+										ready = true;
+										now = last = prevTick = Date.now();
+									}
 								}
 								if (ready && last) clock += Math.min(now - last, 60) / 1000;
 								last = now;
