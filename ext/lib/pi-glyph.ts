@@ -130,7 +130,7 @@ export function renderPixels(w: number, h: number, t: number, fit: FitOptions = 
 type Rgb = ReturnType<typeof mixColors>;
 const DARK = parseColor("#161b2e");
 const WHITE = parseColor("#ffffff");
-const BINS = 10;
+const BINS = 32; // fine enough that the rainbow (about 500° of hue across the glyph) shows no visible steps
 const SHIFT_STEPS = 40;
 const shiftStep = (t: number) => Math.floor(((t / GRADIENT_PERIOD) % 1) * SHIFT_STEPS);
 let lutKey = "";
