@@ -58,7 +58,7 @@ export default function (pi: ExtensionAPI) {
 								animate(tui, true, 50);
 								const rows = tui.terminal.rows;
 								const now = Date.now();
-								if (!ready && ((now - born > 350 && now - lastStall > 300) || now - born > 2200)) {
+								if (!ready && ((now - born > 700 && now - lastStall > 450) || now - born > 3000)) {
 									ready = true;
 									last = now;
 								}

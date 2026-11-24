@@ -14,7 +14,7 @@ export type KeyName = "sessions" | "swarm" | "checks" | "palette" | "newtab";
  * ~/.pi/agent/state/ui-keys.json ({ "sessions": "ctrl+r", ... }, untracked). Each action has one or more keys.
  */
 export const KEYS: Record<KeyName, string[]> = (() => {
-	const fallback = process.platform === "darwin" ? { sessions: "ctrl+r", swarm: "ctrl+f", checks: "ctrl+b", palette: ["ctrl+y", "f1"], newtab: "ctrl+n" } : { sessions: "alt+s", swarm: "alt+w", checks: "alt+c", palette: ["alt+k", "f1"], newtab: "alt+n" };
+	const fallback = process.platform === "darwin" ? { sessions: "ctrl+r", swarm: "ctrl+f", checks: "ctrl+b", palette: ["ctrl+y", "f1"], newtab: "alt+n" } : { sessions: "alt+s", swarm: "alt+w", checks: "alt+c", palette: ["alt+k", "f1"], newtab: "alt+n" };
 	const read = (p: string): Record<string, unknown> => {
 		try {
 			return existsSync(p) ? JSON.parse(readFileSync(p, "utf8")) : {};

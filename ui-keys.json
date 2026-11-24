@@ -18,7 +18,7 @@
       "super+shift+p",
       "f1"
     ],
-    "newtab": "ctrl+n"
+    "newtab": "alt+n"
   },
   "win32": {
     "sessions": "ctrl+r",
@@ -28,7 +28,7 @@
       "ctrl+y",
       "f1"
     ],
-    "newtab": "ctrl+n"
+    "newtab": "alt+n"
   },
   "linux": {
     "sessions": "alt+s",

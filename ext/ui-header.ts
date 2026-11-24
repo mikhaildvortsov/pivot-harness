@@ -1,7 +1,6 @@
 // Live task header: gradient title, session/task summary, classification badges (kind, fullstack, security, swarm, spec),
 // branch and PR state, and a rule line with a sweeping light while the agent works.
 import type { ExtensionAPI, Theme } from "@earendil-works/pi-coding-agent";
-import { VERSION } from "@earendil-works/pi-coding-agent";
 import { truncateToWidth } from "@earendil-works/pi-tui";
 import { gradientText } from "./lib/gradients.ts";
 import { animate, blend, rightAlign } from "./lib/ui-kit.ts";
@@ -56,7 +55,7 @@ export default function (pi: ExtensionAPI) {
 				const busy = !ctx.isIdle();
 				animate(tui, busy);
 
-				const title = gradientText(theme, "π pivot", now / 1000) + theme.fg("dim", ` ${VERSION}`);
+				const title = gradientText(theme, "pivot", now / 1000);
 				const name = ctx.sessionManager.getSessionName() || cls?.summary || "";
 				const left = title + (name ? theme.fg("borderMuted", "  ▸  ") + theme.fg("text", truncateToWidth(name, Math.max(10, width - 60), "…")) : "");
 

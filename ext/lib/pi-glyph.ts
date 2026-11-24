@@ -133,22 +133,30 @@ const WHITE = parseColor("#ffffff");
 const BINS = 96; // fine enough that the rainbow (about 500° of hue across the glyph) shows no visible steps; one bin per pixel column or finer
 const SHIFT_STEPS = 40;
 const shiftStep = (t: number) => Math.floor(((t / GRADIENT_PERIOD) % 1) * SHIFT_STEPS);
+/** One gradient position per bin; the 16 brightness levels of a bin are mixed on first use (a frame touches only a few of them). */
+type Pal = { mids: Rgb[]; cells: (Rgb | undefined)[][] };
+const levelColor = (pal: Pal, bin: number, i: number): Rgb => {
+	const row = pal.cells[bin]!;
+	let c = row[i];
+	if (!c) {
+		const mid = pal.mids[bin]!, k = i / 15;
+		row[i] = c = k < 0.6 ? mixColors(DARK, mid, k / 0.6) : mixColors(mid, WHITE, ((k - 0.6) / 0.4) * 0.7);
+	}
+	return c;
+};
 let lutKey = "";
-let lut: Rgb[][] = [];
-function colors(_theme: Theme, t: number): Rgb[][] {
+let lut: Pal = { mids: [], cells: [] };
+function colors(_theme: Theme, t: number): Pal {
 	const name = currentGradient();
 	const step = shiftStep(t);
 	const key = `${name}:${step}`;
 	if (key === lutKey) return lut;
 	lutKey = key;
 	const slide = phase((step / SHIFT_STEPS) * GRADIENT_PERIOD) * 0.3; // how far the gradient has slid along the picture
-	lut = Array.from({ length: BINS }, (_, b) => {
-		const mid = gradientColor(Math.min(1, (b / (BINS - 1)) * 0.7 + slide), name);
-		return Array.from({ length: 16 }, (_, i) => {
-			const k = i / 15;
-			return k < 0.6 ? mixColors(DARK, mid, k / 0.6) : mixColors(mid, WHITE, ((k - 0.6) / 0.4) * 0.7);
-		});
-	});
+	lut = {
+		mids: Array.from({ length: BINS }, (_, b) => gradientColor(Math.min(1, (b / (BINS - 1)) * 0.7 + slide), name)),
+		cells: Array.from({ length: BINS }, () => new Array<Rgb | undefined>(16)),
+	};
 	return lut;
 }
 /** Which gradient bin a horizontal position (0..1) falls into. */
@@ -197,7 +205,7 @@ export function bloom(px: Pixels, radius: number, strength: number): void {
 }
 
 /** Color levels (16) for a brightness, drifting slowly with time. */
-export function palette(theme: Theme, t: number): { pal: Rgb[][]; key: string } {
+export function palette(theme: Theme, t: number): { pal: Pal; key: string } {
 	return { pal: colors(theme, t), key: `${currentGradient()}${shiftStep(t)}` };
 }
 
@@ -227,11 +235,11 @@ export function encodeHalf(theme: Theme, px: Pixels, t: number, bgCell?: (x: num
 				continue;
 			}
 			const lt = level(px.lum[kt]!), lb = level(px.lum[kb]!);
-			const bin = binAt(x / Math.max(1, cols - 1)), P = pal[bin]!;
+			const bin = binAt(x / Math.max(1, cols - 1)), P = (i: number) => levelColor(pal, bin, i);
 			let key: string, ch: string, fg: Rgb | undefined, bg: Rgb | undefined;
-			if (top && bot) [key, ch, fg, bg] = [`${hueKey}:${bin}b${lt}:${lb}`, "▀", P[lt], P[lb]];
-			else if (top) [key, ch, fg, bg] = [`${hueKey}:${bin}t${lt}`, "▀", P[lt], undefined];
-			else [key, ch, fg, bg] = [`${hueKey}:${bin}u${lb}`, "▄", P[lb], undefined];
+			if (top && bot) [key, ch, fg, bg] = [`${hueKey}:${bin}b${lt}:${lb}`, "▀", P(lt), P(lb)];
+			else if (top) [key, ch, fg, bg] = [`${hueKey}:${bin}t${lt}`, "▀", P(lt), undefined];
+			else [key, ch, fg, bg] = [`${hueKey}:${bin}u${lb}`, "▄", P(lb), undefined];
 			if (key !== curKey) {
 				const [pre, suf] = ansi(theme, key, fg, bg);
 				if (curKey) line += curSuf;
@@ -252,7 +260,7 @@ export function glyphCell(theme: Theme, t: number, ch: string, brightness: numbe
 	const { pal, key } = palette(theme, t);
 	const lv = level(brightness);
 	const bin = binAt(frac);
-	const [pre, suf] = ansi(theme, `${key}:${bin}c${lv}`, pal[bin]![lv], undefined);
+	const [pre, suf] = ansi(theme, `${key}:${bin}c${lv}`, levelColor(pal, bin, lv), undefined);
 	return `${pre}${ch}${suf}`;
 }
 
@@ -289,7 +297,7 @@ export function renderMini(theme: Theme, cols: number, rows: number, t: number):
 			}
 			const lv = level(Math.min(1, sum / n + 0.15));
 			const bin = binAt(x / Math.max(1, cols - 1));
-			const [pre, suf] = ansi(theme, `${hueKey}:${bin}m${lv}`, pal[bin]![lv], undefined);
+			const [pre, suf] = ansi(theme, `${hueKey}:${bin}m${lv}`, levelColor(pal, bin, lv), undefined);
 			line += `${pre}${String.fromCharCode(0x2800 + bits)}${suf}`;
 		}
 		out.push(line);

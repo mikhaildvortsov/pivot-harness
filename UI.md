@@ -17,7 +17,7 @@
 | Панель | macOS | Windows | Linux | Всегда |
 |---|---|---|---|---|
 | Чаты | `Ctrl+R`, `⌘⇧E` | `Ctrl+R` | `Alt+S` | `/sessions`, `/resume` |
-| Новая вкладка с чатом (Ghostty) | `Ctrl+N` | `Ctrl+N` | `Alt+N` | `/tab` |
+| Новая вкладка с чатом (Ghostty) | `Alt+N` | `Alt+N` | `Alt+N` | `/tab` |
 | Подагенты | `Ctrl+F`, `⌘⇧A` | `Ctrl+F` | `Alt+W` | `/subagents` |
 | Проверки | `Ctrl+B`, `⌘⇧M` | `Ctrl+B` | `Alt+C` | `/checks` |
 | Палитра команд | `Ctrl+Y`, `⌘⇧P`, `F1` | `Ctrl+Y`, `F1` | `Alt+K`, `F1` | `/palette` |
