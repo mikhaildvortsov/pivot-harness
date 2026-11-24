@@ -64,13 +64,20 @@ export default function (pi: ExtensionAPI) {
 								animate(tui, true, 50);
 								const rows = tui.terminal.rows;
 								const now = Date.now();
-								if (!ready && ((now - born > 700 && now - lastStall > 450) || now - born > 3000)) {
+								if (!ready && ((now - born > 1000 && now - lastStall > 600) || now - born > 4000)) {
 									ready = true;
 									last = now;
 								}
 								if (ready && last) clock += Math.min(now - last, 60) / 1000;
 								last = now;
 								const t = clock;
+								if (!ready) {
+									// still holding the first frame: run the real frames offscreen so code and caches are warm when the animation starts.
+									// Time spent here is not counted as a stall of the rest of the startup.
+									const w0 = Date.now();
+									bootFrame(theme, width, rows, ((w0 - born) / 1000) * 1.5, "");
+									prevTick += Date.now() - w0;
+								}
 								return bootFrame(theme, width, rows, t, "начните вводить команду или задачу");
 							},
 						};
