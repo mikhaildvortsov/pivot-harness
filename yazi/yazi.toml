@@ -1,0 +1,22 @@
+# Pivot start screen: file manager config (yazi). Icons come from a Nerd Font (JetBrainsMono Nerd Font in the Ghostty config).
+[mgr]
+ratio = [1, 3, 4]
+sort_by = "natural"
+sort_dir_first = true
+show_hidden = false
+linemode = "size"
+
+[preview]
+max_width = 1200
+max_height = 1600
+
+# git status marks next to files and folders (yazi >= 26 needs `group` instead of `id`)
+[[plugin.prepend_fetchers]]
+url   = "*"
+run   = "git"
+group = "git"
+
+[[plugin.prepend_fetchers]]
+url   = "*/"
+run   = "git"
+group = "git"

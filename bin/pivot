@@ -1,0 +1,38 @@
+#!/usr/bin/env sh
+# Pivot launcher: runs pi with this directory as its agent config (so the repo can live anywhere).
+here="$(cd "$(dirname "$(readlink "$0" 2>/dev/null || echo "$0")")" && pwd)"
+export PI_CODING_AGENT_DIR="$(cd "$here/.." && pwd)"
+export PIVOT=1
+# Terminals started from the Dock (Ghostty, iTerm) do not load the shell profile: make sure pi and node are found.
+PATH="$HOME/.local/bin:$HOME/.npm-global/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+if ! command -v pi >/dev/null 2>&1; then
+  prefix="$(npm config get prefix 2>/dev/null)"
+  [ -n "$prefix" ] && PATH="$prefix/bin:$PATH"
+fi
+if ! command -v pi >/dev/null 2>&1; then
+  echo "pivot: the 'pi' command was not found. Install it with: npm install -g @earendil-works/pi-coding-agent" >&2
+  exit 127
+fi
+export PATH
+# API keys: terminals started from the Dock (Ghostty, iTerm) do not read ~/.zshrc. Load them from local/env.sh (untracked) if it exists,
+# otherwise take the key exports from the usual shell profiles.
+if [ -f "$PI_CODING_AGENT_DIR/local/env.sh" ]; then
+  . "$PI_CODING_AGENT_DIR/local/env.sh"
+else
+  for f in "$HOME/.zshrc" "$HOME/.zprofile" "$HOME/.bashrc" "$HOME/.profile"; do
+    [ -f "$f" ] && eval "$(grep -E '^[[:space:]]*export[[:space:]]+(NANOGPT_API_KEY|GONKA_API_KEY)=' "$f" | tail -2)"
+  done
+fi
+# --pick / --files: open the file manager first, starting in the folder pivot was launched from; pivot then opens in the folder you choose.
+args=""; pick=0
+for a in "$@"; do
+  case "$a" in
+    --pick|--files) pick=1 ;;
+    *) args="$args '$(printf %s "$a" | sed "s/'/'\\\\''/g")'" ;;
+  esac
+done
+if [ "$pick" = 1 ]; then
+  export PIVOT_START_DIR="$PWD" PIVOT_FORWARD_ARGS="$args"
+  exec "$here/pivot-start"
+fi
+exec pi "$@"

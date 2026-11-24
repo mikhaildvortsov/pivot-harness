@@ -1,0 +1,162 @@
+{
+  "lastChangelogVersion": "1.6.0",
+  "packages": [
+    "npm:cc-safety-net",
+    "git:github.com/obra/superpowers@v7.0.2",
+    {
+      "source": "npm:pi-subagents@0.90.0",
+      "prompts": [],
+      "skills": [
+        "!council-mode"
+      ]
+    }
+  ],
+  "defaultProvider": "router",
+  "defaultModel": "auto",
+  "defaultThinkingLevel": "high",
+  "compaction": {
+    "enabled": true,
+    "reserveTokens": 150000,
+    "keepRecentTokens": 15000
+  },
+  "skills": [
+    "!~/.agents/skills/**",
+    "+~/.claude/skills/speckit-analyze",
+    "+~/.claude/skills/speckit-checklist",
+    "+~/.claude/skills/speckit-clarify",
+    "+~/.claude/skills/speckit-constitution",
+    "+~/.claude/skills/speckit-converge",
+    "+~/.claude/skills/speckit-plan",
+    "+~/.claude/skills/speckit-specify",
+    "+~/.claude/skills/speckit-tasks",
+    "+~/.claude/skills/speckit-taskstoissues"
+  ],
+  "httpIdleTimeoutMs": 45000,
+  "retry": {
+    "enabled": true,
+    "maxRetries": 6,
+    "baseDelayMs": 1000
+  },
+  "extensions": [
+    "ext/stream-watchdog.ts",
+    "ext/watchdog-maintainer.ts",
+    "ext/self-check.ts",
+    "ext/router.ts",
+    "ext/nanogpt-guard.ts",
+    "ext/journal.ts",
+    "ext/config-guard.ts",
+    "ext/git-guard.ts",
+    "ext/anti-laziness.ts",
+    "ext/task-classifier.ts",
+    "ext/swarm-gate.ts",
+    "ext/skill-router.ts",
+    "ext/project-memory.ts",
+    "ext/auto-verify.ts",
+    "ext/flow-skills.ts",
+    "ext/opus-director.ts",
+    "ext/ship-gate.ts",
+    "ext/ui-style.ts",
+    "ext/ui-header.ts",
+    "ext/ui-footer.ts",
+    "ext/ui-checks.ts",
+    "ext/ui-swarm.ts",
+    "ext/ui-sessions.ts",
+    "ext/ui-palette.ts",
+    "ext/ui-splash.ts",
+    "ext/ui-legacy.ts",
+    "ext/ui-effects.ts",
+    "ext/ui-tabs.ts"
+  ],
+  "theme": "system",
+  "warnings": {
+    "anthropicExtraUsage": false
+  },
+  "subagents": {
+    "defaultModel": "router/auto",
+    "defaultExtensions": [
+      "~/.pi/agent/ext/stream-watchdog.ts",
+      "~/.pi/agent/ext/router.ts",
+      "~/.pi/agent/ext/nanogpt-guard.ts",
+      "~/.pi/agent/ext/anti-laziness.ts",
+      "~/.pi/agent/ext/git-guard.ts",
+      "~/.pi/agent/ext/config-guard.ts",
+      "~/.pi/agent/ext/skill-router.ts",
+      "~/.pi/agent/ext/subagent-skills.ts"
+    ],
+    "agentOverrides": {
+      "claude-code": {
+        "disabled": true
+      },
+      "claude-code-writer": {
+        "disabled": true
+      },
+      "codex-exec": {
+        "disabled": true
+      },
+      "codex-exec-writer": {
+        "disabled": true
+      },
+      "cursor-agent": {
+        "disabled": true
+      },
+      "cursor-agent-writer": {
+        "disabled": true
+      },
+      "researcher": {
+        "disabled": true
+      },
+      "evidence-auditor": {
+        "disabled": true
+      },
+      "reviewer": {
+        "tools": [
+          "read",
+          "grep",
+          "find",
+          "ls",
+          "bash",
+          "find_skills"
+        ],
+        "thinking": "high"
+      },
+      "worker": {
+        "tools": [
+          "read",
+          "grep",
+          "find",
+          "ls",
+          "bash",
+          "edit",
+          "write",
+          "contact_supervisor",
+          "find_skills"
+        ],
+        "thinking": "off"
+      },
+      "scout": {
+        "tools": [
+          "read",
+          "grep",
+          "find",
+          "ls",
+          "bash",
+          "write",
+          "contact_supervisor",
+          "find_skills"
+        ],
+        "thinking": "off"
+      }
+    }
+  },
+  "enabledModels": [
+    "router/auto",
+    "anthropic/claude-opus-5-5",
+    "anthropic/claude-opus-4-8",
+    "anthropic/claude-sonnet-5-5"
+  ],
+  "extensionChangelogVersions": {
+    "{\"source\":\"npm:pi-subagents@0.90.0\",\"scope\":\"user\"}": "0.90.0"
+  },
+  "quietStartup": true,
+  "hideThinkingBlock": true
+}

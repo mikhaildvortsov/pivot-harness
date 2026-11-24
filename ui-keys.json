@@ -1,0 +1,43 @@
+{
+  "_comment": "Горячие клавиши панелей по платформам. Ключи: darwin (macOS), win32 (Windows), linux. Значение: строка или список. super = Command. Свои значения без правки репозитория: state/ui-keys.json (не отслеживается git).",
+  "darwin": {
+    "sessions": [
+      "ctrl+r",
+      "super+shift+e"
+    ],
+    "swarm": [
+      "ctrl+f",
+      "super+shift+a"
+    ],
+    "checks": [
+      "ctrl+b",
+      "super+shift+m"
+    ],
+    "palette": [
+      "ctrl+y",
+      "super+shift+p",
+      "f1"
+    ],
+    "newtab": "ctrl+n"
+  },
+  "win32": {
+    "sessions": "ctrl+r",
+    "swarm": "ctrl+f",
+    "checks": "ctrl+b",
+    "palette": [
+      "ctrl+y",
+      "f1"
+    ],
+    "newtab": "ctrl+n"
+  },
+  "linux": {
+    "sessions": "alt+s",
+    "swarm": "alt+w",
+    "checks": "alt+c",
+    "palette": [
+      "alt+k",
+      "f1"
+    ],
+    "newtab": "alt+n"
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "toolActivation": "eager",
+  "toolDescriptionMode": "compact",
+  "asyncByDefault": false,
+  "autoResume": false,
+  "defaultSubagentContext": "fresh",
+  "maxSubagentDepth": 1,
+  "maxSubagentSpawnsPerSession": 30,
+  "parallel": {
+    "maxTasks": 4,
+    "concurrency": 2
+  },
+  "scheduledRuns": {
+    "enabled": false
+  },
+  "missions": {
+    "enabled": false
+  },
+  "intercomBridge": {
+    "mode": "off"
+  },
+  "enableSlashCommands": false,
+  "disabledFeatures": [
+    "agent-management",
+    "watchdog",
+    "panes",
+    "missions",
+    "lane-management",
+    "spawn-budget-grants",
+    "preflight",
+    "lane-metadata",
+    "gates",
+    "usage-budgets",
+    "tool-budgets",
+    "control-overrides",
+    "extension-bindings",
+    "external-machines",
+    "session-sharing",
+    "workflow-scripts"
+  ],
+  "fleetView": false,
+  "asyncWidget": false,
+  "authorityPolicy": {
+    "discardWorktree": "auto",
+    "destructiveCleanup": "auto",
+    "spawnBudgetGrant": "auto",
+    "scheduleCreate": "auto",
+    "stopRun": "auto",
+    "steerRun": "auto",
+    "inspectorOpen": "auto",
+    "projectOpen": "auto"
+  }
+}

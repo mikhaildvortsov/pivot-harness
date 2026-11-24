@@ -1,0 +1,35 @@
+#!/usr/bin/env sh
+# Start screen for a new terminal tab: pick the project folder in the yazi file manager (with icons), then pivot opens there.
+#   q or p  - open pivot in the folder you are in      Q or Esc - cancel (you get the shell)
+# With a folder argument the picker is skipped.
+here="$(cd "$(dirname "$(readlink "$0" 2>/dev/null || echo "$0")")" && pwd)"
+export PATH="$HOME/.local/bin:$HOME/.npm-global/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+if [ -n "$1" ] && [ -d "$1" ]; then cd "$1" && exec "$here/pivot"; fi
+# Where the picker starts: $PIVOT_START_DIR, else the folder written in local/start-dir (untracked), else $HOME.
+start="${PIVOT_START_DIR:-}"
+[ -z "$start" ] && [ -f "$here/../local/start-dir" ] && start="$(cat "$here/../local/start-dir")"
+{ [ -n "$start" ] && [ -d "$start" ]; } || start="$HOME"
+if ! command -v yazi >/dev/null 2>&1; then
+  # No yazi yet: pick the folder with fzf (fuzzy search over folders under $HOME) instead of starting in $HOME blindly.
+  if command -v fzf >/dev/null 2>&1; then
+    finder="find \"$start\" -maxdepth 4 -type d -not -path '*/.*' -not -path '*/node_modules*' -not -path '*/Library/*' 2>/dev/null"
+    command -v fd >/dev/null 2>&1 && finder="fd -t d --max-depth 4 . \"$start\" 2>/dev/null"
+    dir="$(sh -c "$finder" | fzf --prompt='папка проекта > ' --height=70% --reverse --border --header='Enter: открыть pivot здесь   Esc: выйти в терминал')"
+    if [ -n "$dir" ] && [ -d "$dir" ]; then cd "$dir" && eval "exec \"$here/pivot\" $PIVOT_FORWARD_ARGS"; fi
+    exit 0
+  fi
+  exec "$here/pivot"
+fi
+export YAZI_CONFIG_HOME="$here/../yazi"
+# search by name (key f) lists files and folders, skipping dot-dirs and node_modules
+export FZF_DEFAULT_COMMAND="fd --hidden --follow --exclude .git --exclude node_modules --exclude Library"
+state="$here/../state"; mkdir -p "$state"
+n=$(cat "$state/picker-hint" 2>/dev/null || echo 0)
+if [ "$n" -lt 3 ]; then
+  printf '\n  \033[1mPivot\033[0m  выберите папку проекта\n\n    Enter / q / p   открыть pivot в текущей папке\n    l / →  войти в папку   Backspace  назад\n    f  поиск везде   Q / Esc  выйти в терминал\n\n'
+  echo $((n + 1)) > "$state/picker-hint"; sleep 1.6
+fi
+tmp="$(mktemp)"
+yazi "$start" --cwd-file="$tmp"
+dir="$(cat "$tmp" 2>/dev/null)"; rm -f "$tmp"
+if [ -n "$dir" ] && [ -d "$dir" ]; then cd "$dir" && eval "exec \"$here/pivot\" $PIVOT_FORWARD_ARGS"; fi

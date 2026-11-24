@@ -1,0 +1,7 @@
+{
+  "tui.editor.cursorLeft": ["left"],
+  "tui.editor.cursorRight": ["right"],
+  "tui.editor.yank": ["ctrl+shift+y"],
+  "app.session.rename": ["ctrl+shift+r"],
+  "app.clipboard.pasteImage": ["ctrl+v", "super+v"]
+}

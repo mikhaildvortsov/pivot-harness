@@ -1,0 +1,33 @@
+# Pivot config for Ghostty (https://ghostty.org). Installed by ghostty/install.sh (symlinked to ~/.config/ghostty/config).
+theme = Catppuccin Macchiato
+# The backdrop color follows the chosen gradient (/gradient rewrites this line).
+# BACKGROUND-BEGIN
+background = #0b0f14
+# BACKGROUND-END
+# Neon-glass identity: a geometric monospace (JetBrains Mono), slightly airy lines.
+font-family = JetBrainsMono Nerd Font
+font-size = 14
+adjust-cell-height = 8%
+window-padding-x = 12
+window-padding-y = 8
+window-padding-balance = true
+window-save-state = never
+background-opacity = 0.95
+background-blur-radius = 24
+macos-titlebar-style = tabs
+macos-option-as-alt = true
+cursor-style = bar
+cursor-style-blink = false
+mouse-hide-while-typing = true
+confirm-close-surface = false
+auto-update = off
+
+# Shader (pixel identity): chunky nebula and square stars behind empty cells, gradient-tinted bloom, scanlines, cursor trail.
+custom-shader = ~/.pi/agent/ghostty/pivot-void.glsl
+custom-shader-animation = true
+
+# Tab mode: every tab / window is one pivot chat; leaving pivot drops to the shell. Cmd+T opens a new chat tab, Cmd+1..9 jumps,
+# Cmd+Shift+[ / ] cycles. A finished task in a background tab rings the bell (🔔 in the tab title); tab titles show ⠋ working, ✓ done, ✗ error.
+command = sh -c '"$HOME/.local/bin/pivot-start"; exec "$SHELL" -l'
+window-new-tab-position = end
+bell-features = title,attention,system

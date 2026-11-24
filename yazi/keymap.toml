@@ -1,0 +1,52 @@
+[[mgr.prepend_keymap]]
+on = ["p"]
+run = "quit"
+desc = "Открыть pivot в этой папке"
+
+[[mgr.prepend_keymap]]
+on = ["<Enter>"]
+run = "quit"
+desc = "Открыть pivot в этой папке"
+
+[[mgr.prepend_keymap]]
+on = ["Q"]
+run = "quit --no-cwd-file"
+desc = "Выйти без выбора папки"
+
+[[mgr.prepend_keymap]]
+on = ["<Esc>"]
+run = "quit --no-cwd-file"
+desc = "Выйти без выбора папки"
+
+[[mgr.prepend_keymap]]
+on = ["<Backspace>"]
+run = "leave"
+desc = "На уровень выше"
+
+# quick jumps: g then a letter
+[[mgr.prepend_keymap]]
+on = ["g", "m"]
+run = "cd ~/medical_project"
+desc = "Папка medical_project"
+
+[[mgr.prepend_keymap]]
+on = ["g", "p"]
+run = "cd '~/Desktop/проекты и хакатоны'"
+desc = "Папка «проекты и хакатоны»"
+
+[[mgr.prepend_keymap]]
+on = ["g", "h"]
+run = "cd ~"
+desc = "Домашняя папка"
+
+# search by name across the whole home folder (fzf); a folder is entered, a file is revealed in its folder
+[[mgr.prepend_keymap]]
+on = ["f"]
+run = ["cd ~", "plugin fzf"]
+desc = "Поиск по названию во всей домашней папке"
+
+# search only inside the current folder
+[[mgr.prepend_keymap]]
+on = ["F"]
+run = "plugin fzf"
+desc = "Поиск по названию в текущей папке"

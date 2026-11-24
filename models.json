@@ -1,0 +1,261 @@
+{
+  "$schema": "https://pi.dev/schemas/models.schema.json",
+  "providers": {
+    "gonka": {
+      "name": "Easy GonkaAI",
+      "baseUrl": "https://hskyauefqcgbvgvxkluj.supabase.co/functions/v1/gonka",
+      "api": "gonka-watchdog",
+      "apiKey": "$GONKA_API_KEY",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsStore": false,
+        "maxTokensField": "max_tokens",
+        "requiresNonNullAssistantContent": true
+      },
+      "models": [
+        {
+          "id": "deepseek-ai/DeepSeek-V4-Flash-0731",
+          "name": "DeepSeek V4 Flash",
+          "reasoning": true,
+          "input": [
+            "text"
+          ],
+          "cost": {
+            "input": 0.012,
+            "output": 0.025,
+            "cacheRead": 0.012,
+            "cacheWrite": 0.012
+          },
+          "contextWindow": 200000,
+          "maxTokens": 16384,
+          "thinkingLevelMap": {
+            "minimal": null,
+            "low": "low",
+            "medium": null,
+            "high": "high",
+            "xhigh": null,
+            "max": null
+          },
+          "samplingParams": {
+            "temperature": 1.0,
+            "top_p": 0.95
+          },
+          "compat": {
+            "thinkingFormat": "chat-template",
+            "chatTemplateKwargs": {
+              "thinking": {
+                "$var": "thinking.enabled"
+              }
+            }
+          }
+        },
+        {
+          "id": "zai-org/GLM-5.3-Flash",
+          "name": "GLM 5.3 Flash",
+          "reasoning": true,
+          "input": [
+            "text",
+            "image"
+          ],
+          "cost": {
+            "input": 0.02,
+            "output": 0.03,
+            "cacheRead": 0.02,
+            "cacheWrite": 0.02
+          },
+          "contextWindow": 200000,
+          "maxTokens": 16384,
+          "thinkingLevelMap": {
+            "minimal": null,
+            "low": "low",
+            "medium": null,
+            "high": "high",
+            "xhigh": null,
+            "max": null
+          },
+          "samplingParams": {
+            "temperature": 1.0,
+            "top_p": 0.95,
+            "parallel_tool_calls": false
+          },
+          "compat": {
+            "thinkingFormat": "zai"
+          },
+          "images": {
+            "resize": {
+              "maxWidth": 1568,
+              "maxHeight": 1568,
+              "maxBytes": 300000,
+              "jpegQuality": 80
+            },
+            "maxPerMessage": 4,
+            "maxPerRequest": 8
+          }
+        }
+      ]
+    },
+    "nanogpt": {
+      "name": "NanoGPT",
+      "baseUrl": "https://nano-gpt.com/api/v1",
+      "api": "nanogpt-guard",
+      "apiKey": "$NANOGPT_API_KEY",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsStore": false,
+        "maxTokensField": "max_tokens",
+        "requiresNonNullAssistantContent": true
+      },
+      "models": [
+        {
+          "id": "deepseek/deepseek-v4.1-flash-1017",
+          "name": "DeepSeek V4.1 Flash 1017",
+          "reasoning": false,
+          "input": [
+            "text"
+          ],
+          "cost": {
+            "input": 0.1,
+            "output": 0.6,
+            "cacheRead": 0.0042,
+            "cacheWrite": 0.1
+          },
+          "contextWindow": 200000,
+          "maxTokens": 32768,
+          "samplingParams": {
+            "temperature": 1.0,
+            "top_p": 0.95
+          }
+        },
+        {
+          "id": "deepseek/deepseek-v4.1-flash-1017:thinking",
+          "name": "DeepSeek V4.1 Flash 1017 (thinking)",
+          "reasoning": false,
+          "input": [
+            "text"
+          ],
+          "cost": {
+            "input": 0.1,
+            "output": 0.6,
+            "cacheRead": 0.0042,
+            "cacheWrite": 0.1
+          },
+          "contextWindow": 200000,
+          "maxTokens": 32768,
+          "samplingParams": {
+            "temperature": 1.0,
+            "top_p": 0.95
+          }
+        },
+        {
+          "id": "z-ai/glm-5.3-flash",
+          "name": "GLM 5.3 Flash (NanoGPT)",
+          "reasoning": false,
+          "input": [
+            "text",
+            "image"
+          ],
+          "cost": {
+            "input": 0.1,
+            "output": 0.3,
+            "cacheRead": 0.1,
+            "cacheWrite": 0.1
+          },
+          "contextWindow": 200000,
+          "maxTokens": 32768,
+          "samplingParams": {
+            "temperature": 1.0,
+            "top_p": 0.95,
+            "parallel_tool_calls": false
+          },
+          "images": {
+            "resize": {
+              "maxWidth": 1568,
+              "maxHeight": 1568,
+              "maxBytes": 300000,
+              "jpegQuality": 80
+            },
+            "maxPerMessage": 4,
+            "maxPerRequest": 8
+          }
+        },
+        {
+          "id": "qwen/qwen3-coder-next",
+          "name": "Qwen3 Coder Next",
+          "reasoning": false,
+          "input": [
+            "text"
+          ],
+          "cost": {
+            "input": 0.12,
+            "output": 0.8,
+            "cacheRead": 0.07,
+            "cacheWrite": 0.12
+          },
+          "contextWindow": 200000,
+          "maxTokens": 32768,
+          "samplingParams": {
+            "temperature": 0.7,
+            "top_p": 0.8
+          }
+        }
+      ]
+    },
+    "nanogpt-runware": {
+      "name": "NanoGPT (Runware)",
+      "baseUrl": "https://nano-gpt.com/api/v1",
+      "api": "nanogpt-guard",
+      "apiKey": "$NANOGPT_API_KEY",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsStore": false,
+        "maxTokensField": "max_tokens",
+        "requiresNonNullAssistantContent": true
+      },
+      "models": [
+        {
+          "id": "deepseek/deepseek-v4.1-flash-1017",
+          "name": "DeepSeek V4.1 Flash 1017 @Runware",
+          "reasoning": false,
+          "input": [
+            "text"
+          ],
+          "cost": {
+            "input": 0.142,
+            "output": 0.567,
+            "cacheRead": 0.0095,
+            "cacheWrite": 0.142
+          },
+          "contextWindow": 200000,
+          "maxTokens": 32768,
+          "samplingParams": {
+            "temperature": 1.0,
+            "top_p": 0.95
+          }
+        },
+        {
+          "id": "deepseek/deepseek-v4.1-flash-1017:thinking",
+          "name": "DeepSeek V4.1 Flash 1017 (thinking) @Runware",
+          "reasoning": false,
+          "input": [
+            "text"
+          ],
+          "cost": {
+            "input": 0.142,
+            "output": 0.567,
+            "cacheRead": 0.0095,
+            "cacheWrite": 0.142
+          },
+          "contextWindow": 200000,
+          "maxTokens": 32768,
+          "samplingParams": {
+            "temperature": 1.0,
+            "top_p": 0.95
+          }
+        }
+      ],
+      "headers": {
+        "X-Provider": "runware"
+      }
+    }
+  }
+}

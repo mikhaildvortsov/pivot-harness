@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+# Opens a new Ghostty window running pivot in the given directory (default: current). Usable from VS Code tasks/keybindings.
+dir="${1:-$PWD}"
+exec open -na Ghostty --args --working-directory="$dir" -e "$HOME/.local/bin/pivot"

@@ -1,0 +1,13 @@
+sessions/
+auth.json
+local/
+*.local.*
+.DS_Store
+npm/
+journal/
+state/
+trust.json
+models-store.json
+pi-subagents/
+git/
+ext/ui-pet.ts

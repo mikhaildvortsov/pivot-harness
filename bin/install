@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+# Puts `pivot` on PATH (macOS / Linux): symlink into ~/.local/bin. On Windows add this bin directory to PATH instead.
+set -e
+here="$(cd "$(dirname "$0")" && pwd)"
+mkdir -p "$HOME/.local/bin"
+ln -sf "$here/pivot" "$HOME/.local/bin/pivot"
+chmod +x "$here/pivot"
+echo "pivot -> $HOME/.local/bin/pivot (make sure ~/.local/bin is in PATH)"
