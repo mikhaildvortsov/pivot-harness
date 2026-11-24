@@ -66,7 +66,7 @@ export default function (pi: ExtensionAPI) {
 			const busy = paint.busy();
 			if (tuiRef) animate(tuiRef, true, 55); // the border always shimmers (faster while the agent works)
 			const t = Date.now() / 1000;
-			const flow = t * (busy ? 1.1 : 0.6);
+			const flow = t * (busy ? 0.22 : 0.12);
 			const recolor = (line: string) => {
 				const plain = line.replace(ANSI, "");
 				if (!/^[─ ]+$/.test(plain)) return line;
