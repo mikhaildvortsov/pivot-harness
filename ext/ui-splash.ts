@@ -80,7 +80,7 @@ export default function (pi: ExtensionAPI) {
 								}
 								if (ready && last) clock += Math.min(now - last, 60) / 1000;
 								last = now;
-								if (!ready) return Array<string>(rows).fill(""); // while holding, nothing is drawn but the terminal background
+								if (!ready) return Array<string>(rows).fill(" ".repeat(width)); // holding: blank cells hide the prompt underneath, only the terminal background shows
 								const t = clock;
 								return bootFrame(theme, width, rows, t, "начните вводить команду или задачу");
 							},
