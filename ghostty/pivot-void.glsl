@@ -14,17 +14,27 @@ float vnoise(vec2 p) {
 }
 
 // GRADIENT-BEGIN (rewritten by /gradient in Pivot so the shader matches the TUI)
-const vec3 G0 = vec3(0.639, 0.902, 0.208);
-const vec3 G1 = vec3(0.133, 0.827, 0.933);
-const vec3 G2 = vec3(0.655, 0.545, 0.980);
+const vec3 G0 = vec3(0.984, 0.749, 0.141);
+const vec3 G1 = vec3(1.000, 0.647, 0.325);
+const vec3 G2 = vec3(1.000, 0.549, 0.416);
+const vec3 G3 = vec3(0.984, 0.443, 0.522);
+const vec3 G4 = vec3(0.945, 0.447, 0.698);
+const vec3 G5 = vec3(0.871, 0.475, 0.859);
+const vec3 G6 = vec3(0.753, 0.518, 0.988);
 // GRADIENT-END
 // BACKDROP-BEGIN (rewritten by /gradient: nebula strength and star density of the chosen gradient)
-const float NEB = 0.040;
-const float STAR_T = 0.992;
+const float NEB = 0.050;
+const float STAR_T = 0.996;
 // BACKDROP-END
 vec3 aurora(float t) {
     t = clamp(t, 0.0, 1.0);
-    return t < 0.5 ? mix(G0, G1, t * 2.0) : mix(G1, G2, t * 2.0 - 1.0);
+    float x = t * 6.0;
+    if (x < 1.0) return mix(G0, G1, x);
+    if (x < 2.0) return mix(G1, G2, x - 1.0);
+    if (x < 3.0) return mix(G2, G3, x - 2.0);
+    if (x < 4.0) return mix(G3, G4, x - 3.0);
+    if (x < 5.0) return mix(G4, G5, x - 4.0);
+    return mix(G5, G6, x - 5.0);
 }
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {

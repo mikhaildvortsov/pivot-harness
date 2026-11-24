@@ -1,7 +1,7 @@
 // Gradient presets tuned for dark terminals (hex, independent of the pi theme), the active choice, and animated sampling.
 // The choice lives in state/ui-gradient.json ({"name": "aurora"}), written by /gradient, re-read at most twice a second.
 import type { Theme } from "@earendil-works/pi-coding-agent";
-import { mixColors, parseColor } from "@earendil-works/pi-tui";
+import { colorToRgb, mixColors, parseColor } from "@earendil-works/pi-tui";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -11,6 +11,7 @@ export const GRADIENTS: Record<string, { label: string; stops: string[]; bg: str
 	ocean: { label: "Океан: циан → синий → фиолетовый", stops: ["#22d3ee", "#3b82f6", "#8b5cf6"], bg: "#0a1424", nebula: 0.06, stars: 0.995 },
 	ember: { label: "Уголь: янтарь → коралл → сирень", stops: ["#fbbf24", "#fb7185", "#c084fc"], bg: "#1a1015", nebula: 0.05, stars: 0.996 },
 	neon: { label: "Неон: лайм → циан → лаванда", stops: ["#a3e635", "#22d3ee", "#a78bfa"], bg: "#0b0f14", nebula: 0.04, stars: 0.992 },
+	rainbow: { label: "Радуга: весь спектр красный → оранжевый → жёлтый → зелёный → голубой → синий → фиолетовый", stops: ["#ff5f5f", "#ffa24a", "#ffe55c", "#5fe08a", "#4cd9ff", "#5f8bff", "#c57bff"], bg: "#0b0f14", nebula: 0.045, stars: 0.993 },
 	mauve: { label: "Мокко: роза → мальва → небо (в тон catppuccin)", stops: ["#f5c2e7", "#cba6f7", "#89b4fa"], bg: "#1e1e2e", nebula: 0.045, stars: 0.994 },
 };
 export const DEFAULT_GRADIENT = "aurora";
@@ -61,14 +62,18 @@ export function gradientText(theme: Theme, text: string, t: number, bold = true)
 }
 
 /**
- * Applies the chosen gradient to Ghostty: the three stops and the backdrop parameters go into the shader (between the GRADIENT and
+ * Applies the chosen gradient to Ghostty: seven samples of the gradient and the backdrop parameters go into the shader (between the GRADIENT and
  * BACKDROP markers), and the matching background color into the Ghostty config (between the BACKGROUND markers), so every
  * gradient has its own backdrop. Returns true when a file changed (Ghostty then needs a config reload).
  */
 export function syncShader(name = currentGradient()): boolean {
 	const dir = join(homedir(), ".pi", "agent", "ghostty");
 	const preset = GRADIENTS[name]!;
-	const rgb = (hex: string) => [1, 3, 5].map((i) => (parseInt(hex.slice(i, i + 2), 16) / 255).toFixed(3)).join(", ");
+	// the shader always has 7 evenly spaced stops; 3-stop presets are resampled with the same interpolation the TUI uses
+	const samples = Array.from({ length: 7 }, (_, i) => {
+		const c = colorToRgb(gradientColor(i / 6, name));
+		return [c.r, c.g, c.b].map((v) => (v / 255).toFixed(3)).join(", ");
+	});
 	let changed = false;
 	const rewrite = (file: string, begin: RegExp, end: string, body: string) => {
 		try {
@@ -84,7 +89,7 @@ export function syncShader(name = currentGradient()): boolean {
 		}
 	};
 	const shader = join(dir, "pivot-void.glsl");
-	rewrite(shader, /\/\/ GRADIENT-BEGIN/, "// GRADIENT-END", preset.stops.map((h, i) => `const vec3 G${i} = vec3(${rgb(h)});`).join("\n"));
+	rewrite(shader, /\/\/ GRADIENT-BEGIN/, "// GRADIENT-END", samples.map((c, i) => `const vec3 G${i} = vec3(${c});`).join("\n"));
 	rewrite(shader, /\/\/ BACKDROP-BEGIN/, "// BACKDROP-END", `const float NEB = ${preset.nebula.toFixed(3)};\nconst float STAR_T = ${preset.stars.toFixed(3)};`);
 	rewrite(join(dir, "config"), /# BACKGROUND-BEGIN/, "# BACKGROUND-END", `background = ${preset.bg}`);
 	return changed;
