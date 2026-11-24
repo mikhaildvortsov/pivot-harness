@@ -6,7 +6,7 @@ import { bootFrame, warmUp } from "./lib/boot.ts";
 import { animate } from "./lib/ui-kit.ts";
 
 export default function (pi: ExtensionAPI) {
-	if (process.env.PI_SUBAGENT_CHILD === "1" || process.env.PI_OPUS_CHILD === "1" || process.env.PI_DOCTOR_RUN === "1" || process.env.PI_NO_SPLASH === "1") return;
+	if (process.env.PI_SUBAGENT_CHILD === "1" || process.env.PI_OPUS_CHILD === "1" || process.env.PI_DOCTOR_RUN === "1" || process.env.PI_NO_SPLASH === "1" || process.env.PIVOT_NO_SPLASH === "1") return;
 	setImmediate(warmUp); // build the 3D body once, before the first frame needs it
 	// While the splash is (about to be) on screen, header and footer draw nothing, so nothing shows before the animation starts.
 	const flag = ((globalThis as { __pivotSplash?: { visible: boolean } }).__pivotSplash ??= { visible: false });
