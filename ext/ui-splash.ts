@@ -32,7 +32,8 @@ export default function (pi: ExtensionAPI) {
 		let armed = !resumed; // the automatic first showing is still pending; typing or an agent run disarms it for good
 		let manual = false; // shown by /splash: ignores chat history, any key hides it
 		const fresh = () => !ctx.sessionManager.getBranch().some((e) => e.type === "message");
-		const wanted = () => my === epoch && ctx.isIdle() && ctx.ui.getEditorText().length === 0 && (manual || (armed && !used && fresh()));
+		// no isIdle() check: during startup the session may briefly report busy, and then the splash would be skipped (or shown late)
+		const wanted = () => my === epoch && ctx.ui.getEditorText().length === 0 && (manual || (armed && !used && fresh()));
 
 		const show = () => {
 			if (shown) return;
@@ -97,7 +98,7 @@ export default function (pi: ExtensionAPI) {
 		};
 		const hide = () => close?.();
 		const sync = () => {
-			if (ctx.ui.getEditorText().length > 0 || !ctx.isIdle()) armed = false;
+			if (ctx.ui.getEditorText().length > 0) armed = false;
 			if (wanted()) show();
 			else {
 				flag.visible = false;
