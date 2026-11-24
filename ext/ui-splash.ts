@@ -13,6 +13,34 @@ export default function (pi: ExtensionAPI) {
 	const flag = ((globalThis as { __pivotSplash?: { visible: boolean } }).__pivotSplash ??= { visible: false });
 	const interactive = process.stdout.isTTY && !process.argv.some((a) => a === "-p" || a === "--print" || a === "--mode");
 	flag.visible = interactive;
+	// pi draws its own first frame (prompt box, path, token stats) a moment before this extension can put the splash over it, which shows
+	// as a flash. Until the splash has produced its first frame, whole render updates (synchronized-output blocks) are held back and then
+	// written together with it as one update. Everything else (terminal queries, OSC) passes straight through.
+	let held: string[] | undefined;
+	let heldTimer: ReturnType<typeof setTimeout> | undefined;
+	let releaseHeld = () => {};
+	if (interactive) {
+		const rawWrite = process.stdout.write.bind(process.stdout) as (...a: unknown[]) => boolean;
+		held = [];
+		process.stdout.write = ((chunk: unknown, ...rest: unknown[]) => {
+			if (held && typeof chunk === "string" && chunk.includes("\x1b[?2026h")) {
+				held.push(chunk);
+				const cb = rest.find((a) => typeof a === "function") as (() => void) | undefined;
+				if (cb) setImmediate(cb);
+				return true;
+			}
+			return rawWrite(chunk, ...rest);
+		}) as typeof process.stdout.write;
+		releaseHeld = () => {
+			if (!held) return;
+			clearTimeout(heldTimer);
+			process.stdout.write = rawWrite as typeof process.stdout.write;
+			const all = held.join("").split("\x1b[?2026l\x1b[?2026h").join("");
+			held = undefined;
+			if (all) rawWrite(all);
+		};
+		heldTimer = setTimeout(releaseHeld, 1500); // failsafe: never keep the screen frozen
+	}
 	let epoch = 0;
 	let showNow: (() => void) | undefined; // set by the live session; /splash calls it
 	let introSeen = false; // the full intro plays once per process; later returns go straight to the idle loop
@@ -20,10 +48,14 @@ export default function (pi: ExtensionAPI) {
 	pi.on("session_start", async (_e, ctx) => {
 		if (ctx.mode !== "tui") {
 			flag.visible = false;
+			releaseHeld();
 			return;
 		}
 		const resumed = ctx.sessionManager.getBranch().some((e) => e.type === "message"); // a chat with history: no automatic splash, /splash still works
-		if (resumed) flag.visible = false;
+		if (resumed) {
+			flag.visible = false;
+			releaseHeld();
+		}
 		const my = ++epoch;
 		let used = false; // a command or prompt was sent in this chat: the animation never comes back
 		let close: (() => void) | undefined;
@@ -63,6 +95,7 @@ export default function (pi: ExtensionAPI) {
 							invalidate() {},
 							render(width: number): string[] {
 								animate(tui, true, 50);
+								if (held) setTimeout(releaseHeld, 15); // the splash's own first frame is being written right after this call
 								const rows = tui.terminal.rows;
 								let now = Date.now();
 								if (!ready) {
@@ -102,6 +135,7 @@ export default function (pi: ExtensionAPI) {
 			if (wanted()) show();
 			else {
 				flag.visible = false;
+				releaseHeld();
 				hide();
 			}
 		};
