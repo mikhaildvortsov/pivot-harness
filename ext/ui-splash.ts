@@ -1,5 +1,6 @@
-// Splash screen: a large rotating ASCII π over the whole terminal while the chat is empty and the prompt is empty.
-// Typing hides it; clearing the prompt (in a chat with no messages yet) brings it back. The agent starting hides it for good.
+// Splash screen: a large rotating ASCII π over the whole terminal. It shows once when a fresh chat opens and goes away for good at the
+// first typed character or agent run (clearing the prompt does not bring it back). The /splash command shows it again on demand;
+// any key hides it.
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { matchesKey, parseKey } from "@earendil-works/pi-tui";
 import { bootFrame, warmUp } from "./lib/boot.ts";
@@ -13,20 +14,25 @@ export default function (pi: ExtensionAPI) {
 	const interactive = process.stdout.isTTY && !process.argv.some((a) => a === "-p" || a === "--print" || a === "--mode");
 	flag.visible = interactive;
 	let epoch = 0;
+	let showNow: (() => void) | undefined; // set by the live session; /splash calls it
 	let introSeen = false; // the full intro plays once per process; later returns go straight to the idle loop
 
 	pi.on("session_start", async (_e, ctx) => {
-		if (ctx.mode !== "tui" || ctx.sessionManager.getBranch().some((e) => e.type === "message")) {
+		if (ctx.mode !== "tui") {
 			flag.visible = false;
 			return;
 		}
+		const resumed = ctx.sessionManager.getBranch().some((e) => e.type === "message"); // a chat with history: no automatic splash, /splash still works
+		if (resumed) flag.visible = false;
 		const my = ++epoch;
 		let used = false; // a command or prompt was sent in this chat: the animation never comes back
 		let close: (() => void) | undefined;
 		let stopMonitor: (() => void) | undefined;
 		let shown = false;
+		let armed = !resumed; // the automatic first showing is still pending; typing or an agent run disarms it for good
+		let manual = false; // shown by /splash: ignores chat history, any key hides it
 		const fresh = () => !ctx.sessionManager.getBranch().some((e) => e.type === "message");
-		const wanted = () => my === epoch && !used && fresh() && ctx.isIdle() && ctx.ui.getEditorText().length === 0;
+		const wanted = () => my === epoch && ctx.isIdle() && ctx.ui.getEditorText().length === 0 && (manual || (armed && !used && fresh()));
 
 		const show = () => {
 			if (shown) return;
@@ -80,6 +86,7 @@ export default function (pi: ExtensionAPI) {
 		};
 		const hide = () => close?.();
 		const sync = () => {
+			if (ctx.ui.getEditorText().length > 0 || !ctx.isIdle()) armed = false;
 			if (wanted()) show();
 			else {
 				flag.visible = false;
@@ -90,6 +97,7 @@ export default function (pi: ExtensionAPI) {
 		// After every key the editor text has changed: re-check on the next tick. Terminal replies, focus and mouse reports are not keys.
 		const off = ctx.ui.onTerminalInput((data) => {
 			if (data.startsWith("\x1b") && (parseKey(data) === undefined || /^\x1b\[(?:[IO]|<)/.test(data))) return undefined;
+			manual = false;
 			if (matchesKey(data, "enter") || matchesKey(data, "return")) {
 				// Enter with text that leaves the editor empty means a command or prompt was submitted (not just an autocomplete pick).
 				const before = ctx.ui.getEditorText();
@@ -102,16 +110,22 @@ export default function (pi: ExtensionAPI) {
 			setTimeout(sync, 0);
 			return undefined;
 		});
+		showNow = () => {
+			manual = true;
+			setTimeout(sync, 60);
+		};
 		const poll = setInterval(sync, 400);
 		poll.unref?.();
-		pi.on("agent_start", async () => hide());
+		pi.on("agent_start", async () => void ((armed = false), (manual = false), hide()));
 		pi.on("agent_settled", async () => sync());
 		pi.on("session_shutdown", async () => {
 			epoch++;
+			showNow = undefined;
 			off();
 			clearInterval(poll);
 			hide();
 		});
 		sync();
 	});
+	pi.registerCommand("splash", { description: "Показать заставку (любая клавиша её скрывает)", handler: async () => showNow?.() });
 }
