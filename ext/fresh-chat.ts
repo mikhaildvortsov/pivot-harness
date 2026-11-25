@@ -1,4 +1,5 @@
-// Fresh chats. Automatic: once a task is finished and the chat passes AUTO_TOKENS, the next message opens a new chat seeded with the saved note.
+// Fresh chats. Automatic: once a task is finished (real work done, note saved), the next message opens a new chat that starts nearly empty: the request plus a
+// pointer to the saved note (every requirement, the final report, git state) on disk, which the model reads only if the request continues that work.
 // The agent starts a fresh chat for an unrelated task itself, so the old history is not re-sent (and re-billed) on every step.
 // - when a new request arrives and the context is already big, the model is told it may call `new_chat`
 // - `new_chat` marks a hand-off; when the turn settles the /fresh command runs (only commands may create sessions); /fresh opens a new session seeded with
@@ -13,7 +14,7 @@ import { dirname, join } from "node:path";
 import { Type } from "typebox";
 
 const NUDGE_TOKENS = 30_000;
-const AUTO_TOKENS = 40_000; // above this, the next message after a finished task opens a fresh chat by itself (compaction fires at window 200k - reserve 150k = 50k, so this must stay below it)
+const AUTO_TOKENS = 25_000; // a request/system prompt/tool schemas alone are ~21k, so this means "a real conversation has built up"; must stay below the 50k compaction trigger (window 200k - reserve 150k)
 const NOTE_DIR = join(homedir(), ".pi", "agent", "state", "handoff");
 const NOTE_MAX_AGE_MS = 48 * 3600_000;
 const MIN_TOOL_CALLS = 4;
@@ -113,15 +114,24 @@ export default function (pi: ExtensionAPI) {
 		if (!text || /^[\/!]/.test(text) || text.includes("[Hand-off from the previous chat]")) return;
 		const used = ctx.getContextUsage()?.tokens ?? 0;
 		if (used < AUTO_TOKENS) return;
+		const file = await noteFile(ctx.cwd);
 		let note = "";
 		try {
-			note = readFileSync(await noteFile(ctx.cwd), "utf8");
+			note = readFileSync(file, "utf8");
 		} catch {
 			return;
 		}
-		pending = { prompt: event.text, handoff: `(automatic hand-off: the previous chat was ~${Math.round(used / 1000)}k tokens; this is its saved note, state may have moved on, verify branch/PR status before acting)\n${note}` };
+		const field = (k: string) => new RegExp(`^${k}: (.*)$`, "m").exec(note)?.[1] ?? "";
+		pending = {
+			prompt: event.text,
+			handoff:
+				`(automatic hand-off) The previous task finished in the old chat (~${Math.round(used / 1000)}k tokens) and this chat starts clean. ` +
+				`Its full note (every requirement the user stated, the final report, branch, commits) is saved in ${file}. ` +
+				"If this request continues that work (a reply to the report or to a question in it, a fix, \"продолжай\", the same branch or PR), read that file first; if the request is unrelated, ignore it.\n" +
+				[field("task") && `previous task: ${field("task")}`, field("branch") && `branch: ${field("branch")}`].filter(Boolean).join("\n"),
+		};
 		noteSaved = false;
-		ctx.ui.notify(`Новый чат: прошлый контекст (${Math.round(used / 1000)}k токенов) заменён заметкой с требованиями и отчётом. Старый чат: /resume`, "info");
+		ctx.ui.notify(`Задача завершена: следующий запрос начинается в чистом чате (было ${Math.round(used / 1000)}k токенов). Заметка с требованиями и отчётом на диске, старый чат: /resume`, "info");
 		setTimeout(() => pi.sendUserMessage("/fresh", { expandPromptTemplates: true }), 0);
 		return { action: "handled" as const };
 	});
