@@ -3,7 +3,7 @@
 // - `new_chat` marks a hand-off; when the turn settles the /fresh command runs (only commands may create sessions); /fresh opens a new session seeded with
 //   the user's request and a short hand-off written by the model, then runs it there.
 // - hand-off note: when a run that did real work settles, a note is written WITHOUT the model (git state + the run's final report); the first prompt
-//   of a new chat in the same project (< 48 h) gets it injected, so work can be picked up after a pause (e.g. the reply of a second developer).
+//   of a new chat in the same project (< 48 h) gets it injected, so work can be picked up after a pause (e.g. the reply of a second developer). The note carries all user messages (the requirements), so nothing stated is lost.
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
@@ -15,6 +15,8 @@ const NUDGE_TOKENS = 30_000;
 const NOTE_DIR = join(homedir(), ".pi", "agent", "state", "handoff");
 const NOTE_MAX_AGE_MS = 48 * 3600_000;
 const MIN_TOOL_CALLS = 4;
+const REQ_BUDGET = 9_000;
+const NOTE_MAX = 14_000;
 
 export default function (pi: ExtensionAPI) {
 	if (process.env.PI_SUBAGENT_CHILD === "1" || process.env.PI_OPUS_CHILD === "1" || process.env.PI_DOCTOR === "1") return;
@@ -43,6 +45,27 @@ export default function (pi: ExtensionAPI) {
 		}
 		return "";
 	};
+	/** Every user message of the chat, verbatim (the requirements live there). Long ones are cut from the middle only when the budget runs out. */
+	const requirements = (branch: readonly unknown[]) => {
+		const msgs: string[] = [];
+		for (const raw of branch) {
+			const e = raw as { type?: string; message?: { role?: string; content?: unknown } };
+			if (e.type !== "message" || e.message?.role !== "user") continue;
+			const c = e.message.content;
+			const text = (typeof c === "string" ? c : Array.isArray(c) ? (c as Array<{ type?: string; text?: string }>).filter((p) => p.type === "text").map((p) => p.text ?? "").join("\n") : "").trim();
+			if (text && !text.startsWith("/")) msgs.push(text);
+		}
+		let budget = REQ_BUDGET;
+		const out = msgs.map((m, i) => {
+			const left = msgs.length - i;
+			const share = i === msgs.length - 1 || i === 0 ? Math.min(m.length, Math.max(3500, budget / left)) : Math.min(m.length, Math.max(500, budget / left));
+			budget -= Math.min(m.length, share);
+			if (m.length <= share) return `#${i + 1}: ${m}`;
+			const half = Math.floor(share / 2);
+			return `#${i + 1}: ${m.slice(0, half)}\n[... ${m.length - share} chars cut ...]\n${m.slice(-half)}`;
+		});
+		return out.join("\n\n");
+	};
 	const saveNote = async (ctx: { cwd: string; sessionManager: { getBranch(): readonly unknown[] } }) => {
 		if (toolCalls < MIN_TOOL_CALLS && !work) return;
 		const report = lastReport(ctx.sessionManager.getBranch());
@@ -58,6 +81,7 @@ export default function (pi: ExtensionAPI) {
 			`cwd: ${ctx.cwd}`,
 			`branch: ${branch || "(detached)"}`,
 			work ? `task: ${work}` : "",
+			`REQUIREMENTS: every user message of this chat, verbatim, oldest first (later ones refine or override earlier ones):\n${requirements(ctx.sessionManager.getBranch())}`,
 			`final report of the last run:\n${report.slice(0, 2200)}`,
 			commits ? `last commits:\n${commits}` : "",
 			dirty ? `uncommitted: ${dirty.split("\n").length} file(s)` : "",
@@ -67,7 +91,7 @@ export default function (pi: ExtensionAPI) {
 			.join("\n");
 		try {
 			mkdirSync(NOTE_DIR, { recursive: true });
-			writeFileSync(await noteFile(ctx.cwd), body.slice(0, 3500));
+			writeFileSync(await noteFile(ctx.cwd), body.slice(0, NOTE_MAX));
 		} catch {
 			/* best effort */
 		}
