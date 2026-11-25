@@ -13,7 +13,7 @@ import { dirname, join } from "node:path";
 import { Type } from "typebox";
 
 const NUDGE_TOKENS = 30_000;
-const AUTO_TOKENS = 60_000; // above this, the next message after a finished task opens a fresh chat by itself
+const AUTO_TOKENS = 40_000; // above this, the next message after a finished task opens a fresh chat by itself (compaction fires at window 200k - reserve 150k = 50k, so this must stay below it)
 const NOTE_DIR = join(homedir(), ".pi", "agent", "state", "handoff");
 const NOTE_MAX_AGE_MS = 48 * 3600_000;
 const MIN_TOOL_CALLS = 4;
@@ -106,7 +106,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	// Automatic fresh chat: the previous task is finished (its note is saved, with every requirement) and the chat is big, so the next typed message moves to
-	// a new chat that starts from that note instead of re-sending ~60k+ tokens on every step. The old chat stays on disk (/resume).
+	// a new chat that starts from that note instead of re-sending ~40k+ tokens on every step. The old chat stays on disk (/resume).
 	pi.on("input", async (event, ctx) => {
 		if (event.source !== "interactive" || event.streamingBehavior || event.images?.length || pending || !noteSaved) return;
 		const text = event.text.trim();
