@@ -3,7 +3,7 @@
 //  - panel: enter walks into a run, a stage, an agent (live tool, output, usage, final result); esc walks back out
 // Data: foreground `subagent` tool calls (tool_execution_* events with details.results/progress) and background runs
 // (pi-subagents RPC `status` → asyncSnapshot), refreshed on pi-subagents events.
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, Theme } from "@earendil-works/pi-coding-agent";
 import { Panel, panelOptions, type Row, type View } from "./lib/panel.ts";
 import { animate, fmtDur, fmtTokens, KEYS, keyLabel, skeleton, statusMark, type Status, TONE } from "./lib/ui-kit.ts";
 
@@ -33,6 +33,26 @@ type Node = {
 const asyncState = (s: string): Status =>
 	s === "running" ? "running" : s === "queued" ? "queued" : s === "complete" ? "pass" : s === "paused" ? "paused" : s === "stopped" ? "skip" : "fail";
 const progState = (s?: string): Status => (s === "running" || s === "detached" ? "running" : s === "completed" ? "pass" : s === "failed" ? "fail" : "queued");
+
+/** Role name for a worker: its task label when it is short ("frontend"), else the agent type. */
+const roleName = (k: { label: string; agent?: string }) => (/^[\p{L}\d_.\/-]{2,16}$/u.test(k.label.trim()) ? k.label.trim() : (k.agent ?? k.label));
+const steps = new Map<string, { n: number; tool?: string }>();
+/** Estimated progress 0..1: the subagent has no known total, so it rises with each tool step and never reaches 1 before it ends. */
+const progressOf = (k: { id: string; state: Status; tool?: string }) => {
+	if (k.state === "pass" || k.state === "fail") return 1;
+	if (k.state !== "running") return 0;
+	const h = steps.get(k.id) ?? { n: 0 };
+	if (k.tool && k.tool !== h.tool) (h.n++, (h.tool = k.tool));
+	steps.set(k.id, h);
+	return 0.95 * (1 - Math.exp(-h.n / 8));
+};
+const bar = (theme: Theme, width: number, p: number, now: number) => {
+	const full = p * width;
+	let out = "";
+	for (let i = 0; i < width; i++) out += i + 1 <= full ? theme.fg("accent", "━") : i < full + 1 && i + 1 > full ? skeletonCell(theme, now, i) : theme.fg("borderMuted", "─");
+	return out;
+};
+const skeletonCell = (theme: Theme, now: number, i: number) => theme.fg(Math.floor(now / 160) % 2 === i % 2 ? "accent" : "borderMuted", "╸");
 
 const short = (s: string | undefined, n = 70) => (s ?? "").replace(/\s+/g, " ").trim().slice(0, n);
 
@@ -306,10 +326,10 @@ export default function (pi: ExtensionAPI) {
 						const rows = kids.slice(0, 6).map((k, i) => {
 							const last = i === Math.min(kids.length, 6) - 1 && kids.length <= 6;
 							const branch = theme.fg("borderMuted", last ? " └─ " : " ├─ ");
-							const name = (k.agent ?? k.label).padEnd(10).slice(0, 12);
+							const name = roleName(k).padEnd(12).slice(0, 14);
 							const tail =
 								k.state === "running"
-									? skeleton(theme, 12, now) + theme.fg("dim", ` ${k.tool ?? "думает"}`)
+									? bar(theme, 12, progressOf(k), now) + theme.fg("dim", ` ${Math.round(progressOf(k) * 100)}% ${k.tool ?? "думает"}`)
 									: k.state === "queued"
 										? theme.fg("dim", "· · · в очереди")
 										: theme.fg("dim", fmtDur((k.endedAt ?? now) - (k.startedAt ?? now)));
@@ -355,11 +375,11 @@ export default function (pi: ExtensionAPI) {
 					render: (w) => {
 						const now = Date.now();
 						const indent = depth === 0 ? "" : theme.fg("borderMuted", "  ".repeat(depth - 1) + (last ? "└─ " : "├─ "));
-						const name = n.agent && depth > 0 ? theme.fg("mdLink", n.agent) + theme.fg("dim", " · ") : "";
+						const name = n.agent && depth > 0 ? theme.fg("mdLink", roleName(n)) + theme.fg("dim", " · ") : "";
 						const text = theme.fg(n.state === "fail" ? "error" : depth === 0 ? "accent" : "text", n.label);
 						const tail =
 							n.state === "running"
-								? "  " + skeleton(theme, Math.max(4, Math.min(12, w - 50)), now) + theme.fg("dim", ` ${n.tool ?? ""}`)
+								? "  " + bar(theme, Math.max(4, Math.min(12, w - 50)), progressOf(n), now) + theme.fg("dim", ` ${Math.round(progressOf(n) * 100)}% ${n.tool ?? ""}`)
 								: n.state === "queued"
 									? theme.fg("dim", "  · · ·")
 									: "";

@@ -58,6 +58,7 @@ export default function (pi: ExtensionAPI) {
 				`swarm-gate: the plan ${big.path} has ${big.subtasks} subtasks (> ${MAX_SOLO_SUBTASKS}), so implementation must go through the swarm. ` +
 				`Do not write ${target} yourself. Follow superpowers subagent-driven-development: dispatch one \`worker\` per subtask with the \`subagent\` tool ` +
 				"(parallel `tasks` only for disjoint files; dependent subtasks one after another), then a `reviewer`. " +
+				"Give every task a short role `label` (frontend, backend, tests, docs, ...): the swarm panel shows it instead of \"worker\". " +
 				"After the first subagent call you may edit code for integration and review fixes.",
 		};
 	});
