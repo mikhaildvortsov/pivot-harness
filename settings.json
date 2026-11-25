@@ -16,8 +16,8 @@
   "defaultThinkingLevel": "high",
   "compaction": {
     "enabled": true,
-    "reserveTokens": 150000,
-    "keepRecentTokens": 15000
+    "reserveTokens": 80000,
+    "keepRecentTokens": 20000
   },
   "skills": [
     "!~/.agents/skills/**",

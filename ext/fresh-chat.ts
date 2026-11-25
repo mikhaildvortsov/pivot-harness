@@ -14,7 +14,7 @@ import { dirname, join } from "node:path";
 import { Type } from "typebox";
 
 const NUDGE_TOKENS = 30_000;
-const AUTO_TOKENS = 25_000; // a request/system prompt/tool schemas alone are ~21k, so this means "a real conversation has built up"; must stay below the 50k compaction trigger (window 200k - reserve 150k)
+const AUTO_TOKENS = 25_000; // a request/system prompt/tool schemas alone are ~21k, so this means "a real conversation has built up"; must stay below the compaction trigger (window 200k - reserve 80k = 120k)
 const SHORT_WORDS = 15; // shorter messages ("да", "поправь это", "продолжай") are follow-ups: they stay in the chat
 const NOTE_DIR = join(homedir(), ".pi", "agent", "state", "handoff");
 const NOTE_MAX_AGE_MS = 48 * 3600_000;
