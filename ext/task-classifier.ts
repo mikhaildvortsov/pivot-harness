@@ -24,18 +24,48 @@ export type TaskClass = {
 	summary: string;
 };
 
+const LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh"] as const;
+type Level = (typeof LEVELS)[number];
+/** Thinking effort the declared task deserves; the user's own level is the ceiling (see below). */
+export function effortFor(c: TaskClass): Level {
+	// "off" matters most: router/auto then uses the plain (non-thinking) DeepSeek variant, cheaper and faster for chores.
+	if (c.kind === "docs" || c.kind === "ops") return "off";
+	if (c.kind === "question") return "low";
+	if (c.security || c.fullstack || c.kind === "spec" || c.kind === "debug" || c.subtasks > 3) return "high";
+	return "medium";
+}
+
 export default function (pi: ExtensionAPI) {
 	if (process.env.PI_SUBAGENT_CHILD === "1" || process.env.PI_OPUS_CHILD === "1" || process.env.PI_DOCTOR === "1") return;
 	let current: TaskClass | undefined;
 	let userRequest = "";
 
+	// Effort router: a request starts at "low" (it only explores and classifies), then drops/raises to what the class needs.
+	// The level the user picked is the ceiling and is restored when the run settles.
+	let base: Level | undefined;
+	const cap = (want: Level): Level => (base && LEVELS.indexOf(want) > LEVELS.indexOf(base) ? base : want);
+	const setEffort = (want: Level) => {
+		try {
+			pi.setThinkingLevel(cap(want));
+		} catch {
+			/* model without reasoning */
+		}
+	};
+
 	pi.on("input", async () => {
 		current = undefined;
+	});
+	pi.on("agent_settled", async () => {
+		if (!base) return;
+		setEffort(base);
+		base = undefined;
 	});
 
 	pi.on("before_agent_start", async (event) => {
 		if (event.messageType === "user") userRequest = event.prompt;
 		if (event.messageType !== "user" || current) return;
+		base ??= pi.getThinkingLevel() as Level;
+		setEffort("low");
 		return {
 			message: {
 				customType: "task-classifier",
@@ -69,6 +99,7 @@ export default function (pi: ExtensionAPI) {
 			const proposed = params as TaskClass;
 			const verified = await verify(ctx.cwd, proposed);
 			current = verified.result;
+			setEffort(effortFor(current));
 			pi.events.emit("task:classified", { ...current, verifier: verified.note });
 			const steps: string[] = [];
 			if (current.kind === "question") steps.push("Answer directly; do not change files.");

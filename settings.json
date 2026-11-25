@@ -48,6 +48,7 @@
     "ext/git-guard.ts",
     "ext/anti-laziness.ts",
     "ext/task-classifier.ts",
+    "ext/fresh-chat.ts",
     "ext/swarm-gate.ts",
     "ext/skill-router.ts",
     "ext/project-memory.ts",
