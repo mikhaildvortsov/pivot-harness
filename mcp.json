@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "devtools": {
+      "command": "npx",
+      "args": ["-y", "chrome-devtools-mcp@1.14.0", "--headless", "--isolated", "--viewport", "1440x900", "--no-usage-statistics", "--categoryPerformance=false", "--categoryMemory=false"],
+      "description": "Chrome DevTools: open pages, take screenshots and DOM snapshots, click, fill forms, read console and network",
+      "timeout": 90,
+      "exposure": "deferred",
+      "toolExposure": {
+        "navigate_page": "direct",
+        "new_page": "direct",
+        "take_screenshot": "direct",
+        "take_snapshot": "direct",
+        "click": "direct",
+        "fill": "direct",
+        "list_console_messages": "direct"
+      }
+    }
+  }
+}

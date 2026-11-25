@@ -49,3 +49,10 @@ Before saying a task is done:
 
 ## 6. Git and safety
 Stage explicit paths only (no `git add .`). Never `--no-verify`, never force-push, never push `main`/`master`, never merge on your own: all work stays in branches and draft PRs; after delivery ask "Мерджить PR #N (…)?" and merge only when the user explicitly asks (the `ship-pr` skill has the merge procedure). No AI attribution or co-author trailers in commits. Never read or print `.env*` or secrets.
+
+## 7. Browser (DevTools)
+Tools `mcp__devtools__*` drive a headless, isolated Chrome (`navigate_page`, `new_page`, `click`, `fill`, `take_snapshot`, `take_screenshot`, `list_console_messages` are always available; `tool_search` finds the rest: network, emulation, Lighthouse, ...).
+1. To walk through a UI: `new_page`/`navigate_page`, then `take_snapshot` (cheap text tree) to find and drive elements; use `take_screenshot` (needs `pageId` from `list_pages`) only when the look matters (layout, colors, overlap, responsive).
+2. A screenshot is read by the vision model (GLM Flash) for that one step and the turn then returns to the text model, so write down what you saw (element, state, defect) in plain text right after each screenshot.
+3. Only local, dev and staging URLs. Never prod, never a page showing real patient data or secrets; use fabricated fixtures. Do not type credentials taken from files.
+4. After a UI change: reload, check console errors, screenshot at desktop and mobile width (`emulate`/`resize_page`), and state the result. Close pages you opened.

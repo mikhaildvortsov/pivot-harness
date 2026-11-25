@@ -39,12 +39,27 @@ const benchedUntil = new Map<string, number>();
 const family = (provider: string) => (provider.startsWith(NG) ? NG : provider);
 const isBenched = (r: Ref) => (benchedUntil.get(key(r)) ?? 0) > Date.now() || (benchedUntil.get(family(r.provider)) ?? 0) > Date.now();
 
-/** An image in the current turn: any user message after the last assistant message (an attachment comes with a paired text message). */
+const imageIn = (m: { content?: unknown }) => Array.isArray(m.content) && m.content.some((p) => (p as { type?: string }).type === "image");
+/** An image in the current turn: a user message (attachment) or a tool result (a DevTools screenshot) after the last assistant message. pi-ai replaces images with a placeholder for text-only models, so such a step must go to the vision chain. */
 function hasImage(messages: readonly unknown[]): boolean {
 	for (let i = messages.length - 1; i >= 0; i--) {
 		const m = messages[i] as { role?: string; content?: unknown };
 		if (m.role === "assistant") return false;
-		if (m.role === "user" && Array.isArray(m.content) && m.content.some((p) => (p as { type?: string }).type === "image")) return true;
+		if ((m.role === "user" || m.role === "toolResult") && imageIn(m)) return true;
+	}
+	return false;
+}
+/** The user themselves attached an image to this request (the prompt message, or the one paired with it). */
+function promptHasImage(messages: readonly unknown[]): boolean {
+	let seen = 0;
+	for (let i = messages.length - 1; i >= 0 && seen < 2; i--) {
+		const m = messages[i] as { role?: string; content?: unknown };
+		if (m.role !== "user") {
+			if (seen) return false;
+			continue;
+		}
+		seen++;
+		if (imageIn(m)) return true;
 	}
 	return false;
 }
@@ -111,7 +126,10 @@ export default function (pi: ExtensionAPI) {
 			// Tool follow-ups stay on the model that started the turn (prompt cache), unless it was benched meanwhile.
 			if (request.reason === "continuation" && prev && !isBenched({ provider: prev.provider, id: prev.id })) {
 				const canSeeImages = !image || (prev.input as readonly string[]).includes("image");
-				if (canSeeImages) return { model: prev, thinkingLevel: request.previous?.thinkingLevel ?? withLevel(prev, level), state: reset };
+				// A screenshot from a tool is read by the vision model for one step; the rest of the turn returns to the cheaper text model.
+				// (An image the user attached stays with the vision model for the whole turn: the text model would only see a placeholder.)
+				const backToText = !image && CHAIN_IMAGE.some((r) => r.provider === prev.provider && r.id === prev.id) && !promptHasImage(request.messages);
+				if (canSeeImages && !backToText) return { model: prev, thinkingLevel: request.previous?.thinkingLevel ?? withLevel(prev, level), state: reset };
 			}
 			if (request.reason === "direct") {
 				const m = pick(CHAIN_PLAIN);
