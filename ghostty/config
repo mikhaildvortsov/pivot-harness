@@ -1,9 +1,6 @@
 # Pivot config for Ghostty (https://ghostty.org). Installed by ghostty/install.sh (symlinked to ~/.config/ghostty/config).
 theme = Catppuccin Macchiato
-# The backdrop color follows the chosen gradient (/gradient rewrites this line).
-# BACKGROUND-BEGIN
 background = #0b0f14
-# BACKGROUND-END
 # Neon-glass identity: a geometric monospace (JetBrains Mono), slightly airy lines.
 font-family = JetBrainsMono Nerd Font
 font-size = 14
@@ -22,7 +19,7 @@ mouse-hide-while-typing = true
 confirm-close-surface = false
 auto-update = off
 
-# Shader (pixel identity): chunky nebula and square stars behind empty cells, gradient-tinted bloom, scanlines, cursor trail.
+# Shader (pixel identity): chunky nebula and square stars behind empty cells, accent-tinted bloom, scanlines, cursor trail.
 custom-shader = ~/.pi/agent/ghostty/pivot-void.glsl
 custom-shader-animation = true
 

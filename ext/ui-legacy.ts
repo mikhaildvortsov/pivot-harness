@@ -3,8 +3,8 @@
 // pi's built-in command table is fixed, so the editor intercepts the submitted line instead of the command registry.
 // Also: recalling a command from history (up arrow) puts the cursor at the end and opens its argument suggestions.
 import { CustomEditor, type ExtensionAPI, type Theme } from "@earendil-works/pi-coding-agent";
-import { CURSOR_MARKER, matchesKey } from "@earendil-works/pi-tui";
-import { GRADIENT_PERIOD, gradientColor, phase } from "./lib/gradients.ts";
+import { CURSOR_MARKER, matchesKey, mixColors } from "@earendil-works/pi-tui";
+import { dim, tint } from "./lib/accent.ts";
 import { animate } from "./lib/ui-kit.ts";
 // eslint-disable-next-line no-control-regex
 const ANSI = /\x1b\[[0-9;]*m/g;
@@ -45,7 +45,7 @@ export default function (pi: ExtensionAPI) {
 	let tuiRef: { requestRender(): void } | undefined;
 	let lastTyped = 0;
 	class LegacyEditor extends CustomEditor {
-		/** Top and bottom borders get the active gradient: flowing while the agent works, a calm static wash otherwise. */
+		/** Top and bottom borders: a calm accent line; while the agent works a bright comet with a fading tail runs along it. */
 		render(width: number): string[] {
 			const lines = [...super.render(width)];
 			// The character typed a moment ago is drawn faint for ~45 ms and then at full strength: letters "arrive" instead of popping in.
@@ -64,14 +64,22 @@ export default function (pi: ExtensionAPI) {
 			}
 			if (!paint) return lines;
 			const busy = paint.busy();
-			if (tuiRef) animate(tuiRef, true, 55); // the border always shimmers (faster while the agent works)
+			if (tuiRef) animate(tuiRef, busy, 55); // only the comet needs frames; an idle border is static
 			const t = Date.now() / 1000;
-			const flow = t * (busy ? 0.22 : 0.12);
-			const recolor = (line: string) => {
+						const recolor = (line: string) => {
 				const plain = line.replace(ANSI, "");
 				if (!/^[─ ]+$/.test(plain)) return line;
-				const n = [...plain].length;
-				return [...plain].map((ch, i) => (ch === " " ? ch : paint!.theme.style(ch === "─" ? "━" : ch, { fg: gradientColor(phase(flow + (i / n) * GRADIENT_PERIOD * 1.7)), bold: false }))).join("");
+				const cells = [...plain];
+				const n = cells.length;
+				const TAIL = 16;
+				const head = busy ? (t * 34) % (n + TAIL) : -1; // cells per second; the head runs off the right edge, then restarts
+				return cells.map((ch, i) => {
+					if (ch === " ") return ch;
+					const behind = head - i; // 0 at the head, growing along the tail
+					const glow = busy && behind >= 0 && behind < TAIL ? 1 - behind / TAIL : 0;
+					const base = dim(busy ? 0.6 : 0.5);
+					return paint!.theme.style(ch === "─" ? "━" : ch, { fg: glow > 0 ? mixColors(base, tint(0.55), glow) : base, bold: false });
+				}).join("");
 			};
 			const first = lines.findIndex((x) => /^[─ ]+$/.test(x.replace(ANSI, "")));
 			let last = -1;

@@ -135,6 +135,9 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	const verify = async (cwd: string, proposed: TaskClass): Promise<{ result: TaskClass; note: string }> => {
+		// Light requests (answers, docs, git chores) change no production code: a Sonnet round-trip would cost more than a wrong label could.
+		if (["question", "docs", "ops", "review"].includes(proposed.kind) && !proposed.security && !proposed.fullstack && proposed.subtasks <= 1)
+			return { result: proposed, note: "light task: Sonnet check skipped" };
 		const prompt = [
 			"You verify how a coding agent classified a user's request. Judge by meaning, not keywords.",
 			"Definitions: kind = question (answer only, no changes) | spec (write/clarify requirements, specs, ТЗ, architecture, plans) | code (implement a feature/change) | debug (find and fix a bug) | review (review code/PR) | docs (documentation only) | ops (git/CI/release/merge chores).",
@@ -146,7 +149,7 @@ export default function (pi: ExtensionAPI) {
 		].join("\n\n");
 		const r = await pi.exec(
 			"env",
-			["PI_OPUS_CHILD=1", "PI_SUBAGENT_CHILD=1", "PI_WATCHDOG_MAINTAINER=1", process.execPath, process.argv[1] ?? "pi", "-ne", "--no-session", "--no-tools", "-p", "--model", VERIFIER, "--thinking", "medium", prompt],
+			["PI_OPUS_CHILD=1", "PI_SUBAGENT_CHILD=1", "PI_WATCHDOG_MAINTAINER=1", process.execPath, process.argv[1] ?? "pi", "-ne", "--no-session", "--no-tools", "-p", "--model", VERIFIER, "--thinking", "low", prompt],
 			{ cwd, timeout: VERIFY_TIMEOUT_MS },
 		);
 		const json = r.stdout.match(/\{[\s\S]*\}/)?.[0];

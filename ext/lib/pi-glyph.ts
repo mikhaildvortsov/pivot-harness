@@ -2,7 +2,7 @@
 // Used by the splash screen (large) and the working indicator above the prompt (small).
 import type { Theme } from "@earendil-works/pi-coding-agent";
 import { mixColors, parseColor } from "@earendil-works/pi-tui";
-import { currentGradient, GRADIENT_PERIOD, gradientColor, phase } from "./gradients.ts";
+import { ACCENT } from "./accent.ts";
 
 // π as a Times-style glyph (thin top bar with serifs, curved left leg with a swash foot, straight right leg with a foot serif),
 // inflated into a rounded 3D body: a 2D mask → distance-to-edge → pillow height field, front and back faces with smooth normals.
@@ -124,16 +124,13 @@ export function renderPixels(w: number, h: number, t: number, fit: FitOptions = 
 	return { w, h, cov, lum };
 }
 
-// Brightness → color ramp (dark edge → gradient color → bright), 16 levels, for each of BINS positions along the active gradient.
-// The picture is colored by position (left → right across the glyph shows the gradient the user picked) and the whole gradient
-// slowly slides over it, GRADIENT_PERIOD seconds per pass.
+// Brightness → color ramp (dark edge → accent → bright), 16 levels, one accent color for the whole glyph.
 type Rgb = ReturnType<typeof mixColors>;
 const DARK = parseColor("#161b2e");
 const WHITE = parseColor("#ffffff");
-const BINS = 96; // fine enough that the rainbow (about 500° of hue across the glyph) shows no visible steps; one bin per pixel column or finer
-const SHIFT_STEPS = 40;
-const shiftStep = (t: number) => Math.floor(((t / GRADIENT_PERIOD) % 1) * SHIFT_STEPS);
-/** One gradient position per bin; the 16 brightness levels of a bin are mixed on first use (a frame touches only a few of them). */
+const BINS = 1; // fine enough that the rainbow (about 500° of hue across the glyph) shows no visible steps; one bin per pixel column or finer
+const shiftStep = (_t: number) => 0; // the glyph keeps one color; no sliding
+/** One color per bin (a single bin now); the 16 brightness levels of a bin are mixed on first use (a frame touches only a few of them). */
 type Pal = { mids: Rgb[]; cells: (Rgb | undefined)[][] };
 const levelColor = (pal: Pal, bin: number, i: number): Rgb => {
 	const row = pal.cells[bin]!;
@@ -147,19 +144,15 @@ const levelColor = (pal: Pal, bin: number, i: number): Rgb => {
 let lutKey = "";
 let lut: Pal = { mids: [], cells: [] };
 function colors(_theme: Theme, t: number): Pal {
-	const name = currentGradient();
-	const step = shiftStep(t);
-	const key = `${name}:${step}`;
-	if (key === lutKey) return lut;
-	lutKey = key;
-	const slide = phase((step / SHIFT_STEPS) * GRADIENT_PERIOD) * 0.3; // how far the gradient has slid along the picture
+	if (lutKey) return lut;
+	lutKey = "accent";
 	lut = {
-		mids: Array.from({ length: BINS }, (_, b) => gradientColor(Math.min(1, (b / (BINS - 1)) * 0.7 + slide), name)),
+		mids: [ACCENT],
 		cells: Array.from({ length: BINS }, () => new Array<Rgb | undefined>(16)),
 	};
 	return lut;
 }
-/** Which gradient bin a horizontal position (0..1) falls into. */
+/** Which bin a horizontal position (0..1) falls into. */
 const binAt = (frac: number) => Math.min(BINS - 1, Math.max(0, Math.round(frac * (BINS - 1))));
 const styleCache = new Map<string, readonly [string, string]>();
 function ansi(theme: Theme, key: string, fg: Rgb | undefined, bg: Rgb | undefined): readonly [string, string] {
@@ -206,7 +199,7 @@ export function bloom(px: Pixels, radius: number, strength: number): void {
 
 /** Color levels (16) for a brightness, drifting slowly with time. */
 export function palette(theme: Theme, t: number): { pal: Pal; key: string } {
-	return { pal: colors(theme, t), key: `${currentGradient()}${shiftStep(t)}` };
+	return { pal: colors(theme, t), key: `accent` };
 }
 
 /**
@@ -277,7 +270,7 @@ const BITS = [[0x01, 0x08], [0x02, 0x10], [0x04, 0x20], [0x40, 0x80]];
 export function renderMini(theme: Theme, cols: number, rows: number, t: number): string[] {
 	const px = renderPixels(cols * 2, rows * 4, t, { margin: 1.06, pad: 0.5 });
 	const pal = colors(theme, t);
-	const hueKey = `${currentGradient()}${shiftStep(t)}`;
+	const hueKey = `accent`;
 	const out: string[] = [];
 	for (let y = 0; y < rows; y++) {
 		let line = "";

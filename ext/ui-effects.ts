@@ -6,7 +6,7 @@ import { colorToHex, mixColors, parseColor } from "@earendil-works/pi-tui";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { gradientColor, phase } from "./lib/gradients.ts";
+import { breathe, tint } from "./lib/accent.ts";
 import { spinnerFrame } from "./lib/ui-kit.ts";
 
 type Cfg = { osc: boolean; baseBg?: string; notifyAfterSec: number };
@@ -54,7 +54,7 @@ export default function (pi: ExtensionAPI) {
 		timer = setInterval(() => {
 			const t = Date.now() / 1000;
 			if (cfg.osc) {
-				const c = gradientColor(phase(t));
+				const c = tint(breathe(t, 2) * 0.6);
 				write(`\x1b]12;${hex(c)}\x07`);
 				if (cfg.baseBg) write(`\x1b]11;${hex(mixColors(parseColor(cfg.baseBg), c, 0.05 + 0.03 * Math.sin(t * 2)))}\x07`);
 			}

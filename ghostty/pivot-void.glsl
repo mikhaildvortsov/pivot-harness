@@ -1,6 +1,6 @@
 // Pivot pixel shader for Ghostty (Shadertoy-compatible). Pixel identity: square twinkling stars and a faint pixel nebula behind
-// empty cells (fading out toward the input area), bright text blooms in the gradient color, soft scanlines, a gentle vignette.
-// No 3D: the π and the wordmark are drawn by Pivot's own TUI in pixel art. Colors come from /gradient (block below is rewritten).
+// empty cells (fading out toward the input area), bright text blooms in the accent color, soft scanlines, a gentle vignette.
+// No 3D: the π and the wordmark are drawn by Pivot's own TUI in pixel art.
 
 float hash21(vec2 p) {
     p = fract(p * vec2(123.34, 456.21));
@@ -13,36 +13,17 @@ float vnoise(vec2 p) {
     return mix(mix(hash21(i), hash21(i + vec2(1, 0)), f.x), mix(hash21(i + vec2(0, 1)), hash21(i + vec2(1, 1)), f.x), f.y);
 }
 
-// GRADIENT-BEGIN (rewritten by /gradient in Pivot so the shader matches the TUI)
-const vec3 G0 = vec3(0.945, 0.333, 0.333);
-const vec3 G1 = vec3(0.945, 0.945, 0.333);
-const vec3 G2 = vec3(0.333, 0.945, 0.333);
-const vec3 G3 = vec3(0.333, 0.945, 0.945);
-const vec3 G4 = vec3(0.333, 0.333, 0.945);
-const vec3 G5 = vec3(0.945, 0.333, 0.945);
-const vec3 G6 = vec3(0.945, 0.333, 0.333);
-// GRADIENT-END
-// BACKDROP-BEGIN (rewritten by /gradient: nebula strength and star density of the chosen gradient)
+const vec3 ACC = vec3(0.537, 0.706, 0.980); // the one accent color (#89b4fa)
 const float NEB = 0.045;
-const float STAR_T = 0.993;
-// BACKDROP-END
-vec3 aurora(float t) {
-    t = clamp(t, 0.0, 1.0);
-    float x = t * 6.0;
-    if (x < 1.0) return mix(G0, G1, x);
-    if (x < 2.0) return mix(G1, G2, x - 1.0);
-    if (x < 3.0) return mix(G2, G3, x - 2.0);
-    if (x < 4.0) return mix(G3, G4, x - 3.0);
-    if (x < 5.0) return mix(G4, G5, x - 4.0);
-    return mix(G5, G6, x - 5.0);
-}
+const float STAR_T = 0.994;
+vec3 aurora(float t) { return ACC * (0.55 + 0.45 * clamp(t, 0.0, 1.0)); } // brightness only, no hue change
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     vec2 res = iResolution.xy;
     vec2 uv01 = fragCoord / res;
     vec4 term = texture(iChannel0, uv01);
 
-    // --- bloom of bright terminal content, tinted by the gradient --------------------------------------------------------
+    // --- bloom of bright terminal content, tinted by the accent --------------------------------------------------------
     vec3 blur = vec3(0.0);
     for (int i = 0; i < 8; i++) {
         float a = float(i) * 0.7853982;

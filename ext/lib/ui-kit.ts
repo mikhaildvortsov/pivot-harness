@@ -58,12 +58,6 @@ export function blend(theme: Theme, a: keyof Theme["colors"], b: keyof Theme["co
 	return theme.style(text, { fg: mixColors(theme.colors[a], theme.colors[b], Math.max(0, Math.min(1, t))), bold });
 }
 
-/** Horizontal gradient across a string between two theme colors. */
-export function gradient(theme: Theme, text: string, a: keyof Theme["colors"], b: keyof Theme["colors"], bold = false): string {
-	const chars = [...text];
-	return chars.map((c, i) => (c === " " ? c : blend(theme, a, b, chars.length < 2 ? 0 : i / (chars.length - 1), c, bold))).join("");
-}
-
 /** Skeleton shimmer: a bright band sweeping across `width` block cells (running placeholder). */
 export function skeleton(theme: Theme, width: number, now = Date.now(), glyph = "▬"): string {
 	if (width <= 0) return "";
@@ -118,7 +112,7 @@ export function frame(theme: Theme, title: string, body: string[], width: number
 	const inner = Math.max(4, width - 2);
 	const edge = (s: string) => theme.fg(accent ? "borderAccent" : "border", s);
 	const t = title ? ` ${title} ` : "";
-	const top = edge("┏━") + (accent ? gradient(theme, t.trim() ? t : "", "accent", "mdLink", true) : theme.fg("accent", t)) + edge("━".repeat(Math.max(0, inner - 1 - visibleWidth(t))) + "┓");
+	const top = edge("┏━") + (accent ? theme.style(t, { fg: theme.colors.accent, bold: true }) : theme.fg("accent", t)) + edge("━".repeat(Math.max(0, inner - 1 - visibleWidth(t))) + "┓");
 	const rows = body.map((l) => edge("┃") + fit(l, inner) + edge("┃"));
 	const h = hint ? ` ${hint} ` : "";
 	const bottom = edge("┗" + "━".repeat(Math.max(0, inner - visibleWidth(h) - 1))) + theme.fg("dim", h) + edge("━┛");
