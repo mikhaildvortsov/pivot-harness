@@ -15,7 +15,7 @@ const CACHE_READ_SHARE = 0.067; // cached input costs ~1/15 of fresh input on th
 const PAUSE_MS = 5 * 60_000;
 
 type Usage = { input?: number; output?: number; cacheRead?: number; cacheWrite?: number; cost?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number; total?: number } };
-type Entry = { type?: string; timestamp?: string; message?: { role?: string; provider?: string; model?: string; usage?: Usage; stopReason?: string; content?: unknown } };
+type Entry = { type?: string; timestamp?: string; usage?: Usage; message?: { role?: string; provider?: string; model?: string; usage?: Usage; stopReason?: string; content?: unknown } };
 export type Step = { n: number; model: string; input: number; cacheRead: number; output: number; cost: number; fresh$: number; ratio: number; brk?: { reason: string; extra: number } };
 
 const ratioOf = (u: Usage) => {
@@ -84,6 +84,9 @@ export function report(entries: readonly Entry[], fixed: { system: number; tools
 			cacheCost += (c.cacheRead ?? 0) + (c.cacheWrite ?? 0);
 		}
 	}
+	// summarization calls of compactions are billed too but live on the compaction entries, not on assistant messages
+	const compactions = entries.filter((e) => e.type === "compaction" && e.usage?.cost?.total);
+	const compCost = compactions.reduce((a, e) => a + (e.usage!.cost!.total ?? 0), 0);
 	const breaks = steps.filter((s) => s.brk);
 	const byReason = new Map<string, { n: number; extra: number }>();
 	for (const s of breaks) {
@@ -95,7 +98,7 @@ export function report(entries: readonly Entry[], fixed: { system: number; tools
 	const kinds = outputKinds(entries);
 	const chars = kinds.thinking + kinds.text + kinds.toolCall;
 	const lines = [
-		`Чат: ${steps.length} шагов, ${usd(total)}. Свежий вход ${usd(freshCost)} (${pct(freshCost, total)}), чтение кэша ${usd(cacheCost)} (${pct(cacheCost, total)}), вывод ${usd(outCost)} (${pct(outCost, total)}).`,
+		`Чат: ${steps.length} шагов, всего ${usd(total + compCost)}${compactions.length ? ` (шаги ${usd(total)} + вызовы суммаризации ${compactions.length} компакций ${usd(compCost)})` : ""}. Шаги: свежий вход ${usd(freshCost)} (${pct(freshCost, total)}), чтение кэша ${usd(cacheCost)} (${pct(cacheCost, total)}), вывод ${usd(outCost)} (${pct(outCost, total)}).`,
 		`Кэш: ${pct(cached, inTok + cached)} входных токенов из кэша; свежих ${Math.round(inTok / 1000)}k, из кэша ${Math.round(cached / 1000)}k, вывод ${Math.round(out / 1000)}k.`,
 		breaks.length
 			? `Разрывы кэша: ${breaks.length}, лишние ${usd(sum((s) => s.brk?.extra ?? 0))} (${[...byReason].map(([r, v]) => `${r} ${v.n} / ${usd(v.extra)}`).join(", ")}).`
