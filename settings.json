@@ -48,6 +48,7 @@
     "ext/git-guard.ts",
     "ext/anti-laziness.ts",
     "ext/output-trim.ts",
+    "ext/cost-watch.ts",
     "ext/task-classifier.ts",
     "ext/fresh-chat.ts",
     "ext/swarm-gate.ts",
