@@ -11,7 +11,11 @@ export default function (pi: ExtensionAPI) {
 	setImmediate(warmUp); // build the 3D body once, before the first frame needs it
 	// While the splash is (about to be) on screen, header and footer draw nothing, so nothing shows before the animation starts.
 	const flag = ((globalThis as { __pivotSplash?: { visible: boolean } }).__pivotSplash ??= { visible: false });
-	const interactive = process.stdout.isTTY && !process.argv.some((a) => a === "-p" || a === "--print" || a === "--mode");
+	// /fresh (fresh-chat.ts) opened this chat from the previous one: no splash between chats, so the screen is not held back or covered.
+	const handover = globalThis as { __pivotFresh?: boolean };
+	const fromFresh = handover.__pivotFresh === true;
+	handover.__pivotFresh = false;
+	const interactive = process.stdout.isTTY && !process.argv.some((a) => a === "-p" || a === "--print" || a === "--mode") && !fromFresh;
 	flag.visible = interactive;
 	// pi draws its own first frame (prompt box, path, token stats) a moment before this extension can put the splash over it, which shows
 	// as a flash. Until the splash has produced its first frame, whole render updates (synchronized-output blocks) are held back and then
@@ -51,7 +55,7 @@ export default function (pi: ExtensionAPI) {
 			releaseHeld();
 			return;
 		}
-		const resumed = ctx.sessionManager.getBranch().some((e) => e.type === "message"); // a chat with history: no automatic splash, /splash still works
+		const resumed = fromFresh || ctx.sessionManager.getBranch().some((e) => e.type === "message"); // a chat with history: no automatic splash, /splash still works
 		if (resumed) {
 			flag.visible = false;
 			releaseHeld();

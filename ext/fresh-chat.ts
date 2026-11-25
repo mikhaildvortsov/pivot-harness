@@ -208,6 +208,9 @@ export default function (pi: ExtensionAPI) {
 			const job = pending;
 			pending = undefined;
 			if (!job?.prompt) return void ctx.ui.notify("Нечего переносить: используйте /new", "info");
+			// the splash extension is re-created for the new session; this tells it not to play between chats
+			(globalThis as { __pivotFresh?: boolean }).__pivotFresh = true;
+			setTimeout(() => ((globalThis as { __pivotFresh?: boolean }).__pivotFresh = false), 10_000).unref?.();
 			await ctx.newSession({
 				withSession: async (next) => {
 					await next.sendUserMessage(`${job.prompt}\n\n[Hand-off from the previous chat]\n${job.handoff}`);
