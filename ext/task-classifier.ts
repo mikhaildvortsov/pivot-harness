@@ -30,7 +30,7 @@ type Level = (typeof LEVELS)[number];
 export function effortFor(c: TaskClass): Level {
 	// "off" matters most: router/auto then uses the plain (non-thinking) DeepSeek variant, cheaper and faster for chores.
 	if (c.kind === "docs" || c.kind === "ops") return "off";
-	if (c.kind === "question") return "low";
+	if (c.kind === "question") return "off";
 	if (c.security || c.fullstack || c.kind === "spec" || c.kind === "debug" || c.subtasks > 3) return "high";
 	return "medium";
 }
@@ -40,7 +40,7 @@ export default function (pi: ExtensionAPI) {
 	let current: TaskClass | undefined;
 	let userRequest = "";
 
-	// Effort router: a request starts at "low" (it only explores and classifies), then drops/raises to what the class needs.
+	// Effort router: a request starts at "off" (it only explores and classifies; on NanoGPT any level above off is the same :thinking variant), then drops/raises to what the class needs.
 	// The level the user picked is the ceiling and is restored when the run settles.
 	let base: Level | undefined;
 	const cap = (want: Level): Level => (base && LEVELS.indexOf(want) > LEVELS.indexOf(base) ? base : want);
@@ -65,7 +65,7 @@ export default function (pi: ExtensionAPI) {
 		if (event.messageType === "user") userRequest = event.prompt;
 		if (event.messageType !== "user" || current) return;
 		base ??= pi.getThinkingLevel() as Level;
-		setEffort("low");
+		setEffort("off");
 		return {
 			message: {
 				customType: "task-classifier",
@@ -135,9 +135,6 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	const verify = async (cwd: string, proposed: TaskClass): Promise<{ result: TaskClass; note: string }> => {
-		// Light requests (answers, docs, git chores) change no production code: a Sonnet round-trip would cost more than a wrong label could.
-		if (["question", "docs", "ops", "review"].includes(proposed.kind) && !proposed.security && !proposed.fullstack && proposed.subtasks <= 1)
-			return { result: proposed, note: "light task: Sonnet check skipped" };
 		const prompt = [
 			"You verify how a coding agent classified a user's request. Judge by meaning, not keywords.",
 			"Definitions: kind = question (answer only, no changes) | spec (write/clarify requirements, specs, ТЗ, architecture, plans) | code (implement a feature/change) | debug (find and fix a bug) | review (review code/PR) | docs (documentation only) | ops (git/CI/release/merge chores).",
@@ -149,7 +146,7 @@ export default function (pi: ExtensionAPI) {
 		].join("\n\n");
 		const r = await pi.exec(
 			"env",
-			["PI_OPUS_CHILD=1", "PI_SUBAGENT_CHILD=1", "PI_WATCHDOG_MAINTAINER=1", process.execPath, process.argv[1] ?? "pi", "-ne", "--no-session", "--no-tools", "-p", "--model", VERIFIER, "--thinking", "low", prompt],
+			["PI_OPUS_CHILD=1", "PI_SUBAGENT_CHILD=1", "PI_WATCHDOG_MAINTAINER=1", process.execPath, process.argv[1] ?? "pi", "-ne", "--no-session", "--no-tools", "-p", "--model", VERIFIER, "--thinking", "medium", prompt],
 			{ cwd, timeout: VERIFY_TIMEOUT_MS },
 		);
 		const json = r.stdout.match(/\{[\s\S]*\}/)?.[0];

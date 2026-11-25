@@ -1,3 +1,4 @@
+// Fresh chats. Automatic: once a task is finished and the chat passes AUTO_TOKENS, the next message opens a new chat seeded with the saved note.
 // The agent starts a fresh chat for an unrelated task itself, so the old history is not re-sent (and re-billed) on every step.
 // - when a new request arrives and the context is already big, the model is told it may call `new_chat`
 // - `new_chat` marks a hand-off; when the turn settles the /fresh command runs (only commands may create sessions); /fresh opens a new session seeded with
@@ -12,6 +13,7 @@ import { dirname, join } from "node:path";
 import { Type } from "typebox";
 
 const NUDGE_TOKENS = 30_000;
+const AUTO_TOKENS = 60_000; // above this, the next message after a finished task opens a fresh chat by itself
 const NOTE_DIR = join(homedir(), ".pi", "agent", "state", "handoff");
 const NOTE_MAX_AGE_MS = 48 * 3600_000;
 const MIN_TOOL_CALLS = 4;
@@ -24,6 +26,7 @@ export default function (pi: ExtensionAPI) {
 	let pending: { prompt: string; handoff: string } | undefined;
 	let toolCalls = 0;
 	let work: string | undefined;
+	let noteSaved = false; // the last settled run of THIS chat left a note
 	pi.on("task:classified" as never, ((c: { kind?: string; summary?: string }) => {
 		if (c.kind && c.kind !== "question") work = c.summary;
 	}) as never);
@@ -92,10 +95,36 @@ export default function (pi: ExtensionAPI) {
 		try {
 			mkdirSync(NOTE_DIR, { recursive: true });
 			writeFileSync(await noteFile(ctx.cwd), body.slice(0, NOTE_MAX));
+			noteSaved = true;
 		} catch {
 			/* best effort */
 		}
 	};
+
+	pi.on("session_start", async () => {
+		noteSaved = false;
+	});
+
+	// Automatic fresh chat: the previous task is finished (its note is saved, with every requirement) and the chat is big, so the next typed message moves to
+	// a new chat that starts from that note instead of re-sending ~60k+ tokens on every step. The old chat stays on disk (/resume).
+	pi.on("input", async (event, ctx) => {
+		if (event.source !== "interactive" || event.streamingBehavior || event.images?.length || pending || !noteSaved) return;
+		const text = event.text.trim();
+		if (!text || /^[\/!]/.test(text) || text.includes("[Hand-off from the previous chat]")) return;
+		const used = ctx.getContextUsage()?.tokens ?? 0;
+		if (used < AUTO_TOKENS) return;
+		let note = "";
+		try {
+			note = readFileSync(await noteFile(ctx.cwd), "utf8");
+		} catch {
+			return;
+		}
+		pending = { prompt: event.text, handoff: `(automatic hand-off: the previous chat was ~${Math.round(used / 1000)}k tokens; this is its saved note, state may have moved on, verify branch/PR status before acting)\n${note}` };
+		noteSaved = false;
+		ctx.ui.notify(`Новый чат: прошлый контекст (${Math.round(used / 1000)}k токенов) заменён заметкой с требованиями и отчётом. Старый чат: /resume`, "info");
+		setTimeout(() => pi.sendUserMessage("/fresh"), 0);
+		return { action: "handled" as const };
+	});
 
 	pi.on("before_agent_start", async (event, ctx) => {
 		if (event.messageType !== "user") return;
