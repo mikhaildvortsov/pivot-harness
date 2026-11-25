@@ -2,6 +2,8 @@
 // Data comes from the session branch (usage), pi.events (provider:down, nanogpt:balance) and subagent RPC cost.
 import type { AssistantMessage } from "@earendil-works/pi-ai";
 import type { ExtensionAPI, Theme } from "@earendil-works/pi-coding-agent";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 import { truncateToWidth } from "@earendil-works/pi-tui";
 import { animate, blend, fmtMoney, fmtTokens, meter, pulse, rightAlign, spinnerFrame, type Tone } from "./lib/ui-kit.ts";
 
@@ -25,6 +27,46 @@ export default function (pi: ExtensionAPI) {
 	let taskStartIdx = 0;
 	let childCost = 0;
 	let childTokens = 0;
+	let diskCost = 0;
+	let diskTokens = 0;
+	let diskAt = 0;
+	const childFiles = new Map<string, { size: number; cost: number; tokens: number }>();
+	/** Foreground and async subagents write their own sessions to <session>/<run>/run-N/session.jsonl; the session totals miss them. */
+	const scanChildren = (sessionFile: string | undefined) => {
+		if (!sessionFile || Date.now() - diskAt < 4000) return;
+		diskAt = Date.now();
+		try {
+			const root = sessionFile.replace(/\.jsonl$/, "");
+			if (!existsSync(root)) return;
+			for (const run of readdirSync(root)) {
+				const runDir = join(root, run);
+				if (!statSync(runDir).isDirectory()) continue;
+				for (const sub of readdirSync(runDir)) {
+					const f = join(runDir, sub, "session.jsonl");
+					if (!existsSync(f)) continue;
+					const size = statSync(f).size;
+					if (childFiles.get(f)?.size === size) continue;
+					let cost = 0;
+					let tokens = 0;
+					for (const line of readFileSync(f, "utf8").split("\n")) {
+						if (!line.includes('"usage"')) continue;
+						try {
+							const u = JSON.parse(line).message?.usage;
+							cost += u?.cost?.total ?? 0;
+							tokens += (u?.input ?? 0) + (u?.output ?? 0);
+						} catch {
+							/* partial line */
+						}
+					}
+					childFiles.set(f, { size, cost, tokens });
+				}
+			}
+			diskCost = [...childFiles.values()].reduce((a, c) => a + c.cost, 0);
+			diskTokens = [...childFiles.values()].reduce((a, c) => a + c.tokens, 0);
+		} catch {
+			/* best effort */
+		}
+	};
 
 	pi.events.on("nanogpt:balance", (d) => {
 		balance = d as typeof balance;
@@ -76,8 +118,10 @@ export default function (pi: ExtensionAPI) {
 		return `${line}${theme.fg("dim", ` ${Math.round(samples[samples.length - 1]!)} ток/с`)}`;
 	};
 
+	let taskKidBase = 0;
 	pi.on("input", async (_e, ctx) => {
 		taskStartIdx = ctx.sessionManager.getBranch().length;
+		taskKidBase = Math.max(childCost, diskCost);
 	});
 
 	// Async subagent usage is not part of the session totals; refresh it from the subagent RPC after each settle.
@@ -97,6 +141,8 @@ export default function (pi: ExtensionAPI) {
 		if (ctx.mode !== "tui") return;
 		childCost = 0;
 		childTokens = 0;
+		diskCost = diskTokens = diskAt = taskKidBase = 0;
+		childFiles.clear();
 		taskStartIdx = ctx.sessionManager.getBranch().length;
 		let cacheKey = "";
 		let sums = { tIn: 0, tOut: 0, tCache: 0, tCost: 0, sCost: 0 };
@@ -199,8 +245,11 @@ export default function (pi: ExtensionAPI) {
 					const tokens =
 						theme.fg("dim", "↑") + theme.fg("text", fmtTokens(s.tIn + s.tCache)) + " " +
 						theme.fg("dim", "↓") + theme.fg("text", fmtTokens(s.tOut));
-					const subTok = childTokens > 0 ? theme.fg("dim", ` +подагенты ${fmtTokens(childTokens)}`) : "";
-					const cost = theme.fg("dim", "задача ") + theme.fg("warning", fmtMoney(s.tCost + 0)) + theme.fg("dim", "  сессия ") + theme.fg("warning", fmtMoney(s.sCost + childCost));
+					scanChildren(ctx.sessionManager.getSessionFile());
+					const kidCost = Math.max(childCost, diskCost);
+					const kidTok = Math.max(childTokens, diskTokens);
+					const subTok = kidTok > 0 ? theme.fg("dim", ` +подагенты ${fmtTokens(kidTok)}`) : "";
+					const cost = theme.fg("dim", "задача ") + theme.fg("warning", fmtMoney(s.tCost + Math.max(0, kidCost - taskKidBase))) + theme.fg("dim", "  сессия ") + theme.fg("warning", fmtMoney(s.sCost + kidCost));
 					const bal = balance
 						? theme.fg("dim", "NanoGPT ") + theme.fg(balance.level === "ok" ? "success" : balance.level === "low" ? "warning" : "error", `$${balance.usd.toFixed(2)}`)
 						: theme.fg("dim", "NanoGPT —");
