@@ -87,6 +87,14 @@ export default function (pi: ExtensionAPI) {
 	});
 	// tokens/s sparkline: sampled twice a second from the growing assistant message while the agent works
 	let chars = 0, lastChars = 0, sampler: ReturnType<typeof setInterval> | undefined, lastSample = 0;
+	// timers of the provider probe: a session replacement (/fresh, /new) retires this ctx, so they must stop with the session
+	let probeFirst: ReturnType<typeof setTimeout> | undefined, probeTimer: ReturnType<typeof setInterval> | undefined;
+	pi.on("session_shutdown", async () => {
+		clearTimeout(probeFirst);
+		clearInterval(probeTimer);
+		clearInterval(sampler);
+		sampler = undefined;
+	});
 	const samples: number[] = [];
 	pi.on("message_update", async (e) => {
 		const m = e.message as { role?: string; content?: Array<{ type: string; text?: string; thinking?: string }> };
@@ -169,6 +177,7 @@ export default function (pi: ExtensionAPI) {
 		};
 
 		const probeAll = async () => {
+			try {
 			// Anthropic: subscription credentials configured?
 			const opus = ctx.modelRegistry.find("anthropic", "claude-opus-5-5");
 			probe.set("Anthropic", opus && ctx.modelRegistry.hasConfiguredAuth(opus) ? "ok" : "down");
@@ -184,9 +193,15 @@ export default function (pi: ExtensionAPI) {
 					probe.set("Gonka", "warn");
 				}
 			}
+			} catch {
+				/* ctx became stale (session replaced) or the registry is unavailable: skip this round */
+			}
 		};
-		setTimeout(() => void probeAll(), 3500).unref?.(); // after the intro: network work competes with the animation
-		const probeTimer = setInterval(() => void probeAll(), 5 * 60_000);
+		clearTimeout(probeFirst);
+		clearInterval(probeTimer);
+		probeFirst = setTimeout(() => void probeAll(), 3500); // after the intro: network work competes with the animation
+		probeFirst.unref?.();
+		probeTimer = setInterval(() => void probeAll(), 5 * 60_000);
 		probeTimer.unref?.();
 
 		ctx.ui.setFooter((tui, theme, data) => {
