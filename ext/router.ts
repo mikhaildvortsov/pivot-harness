@@ -1,5 +1,5 @@
 // Virtual model router/auto: picks the physical model per request and fails over along a chain.
-//   text:   NanoGPT DeepSeek V4.1 Flash 1017 pinned to Runware (fastest in the 2026-11-24 benchmark) → same, auto provider → NanoGPT Qwen3 Coder Next → Gonka GLM-5.3 Flash → Gonka DeepSeek V4 Flash
+//   text:   NanoGPT DeepSeek V4.1 Flash 1017 pinned to Runware (fastest in the 2026-11-24 benchmark; subagents start with the cheaper direct NanoGPT route) → same, auto provider → NanoGPT Qwen3 Coder Next → Gonka GLM-5.3 Flash → Gonka DeepSeek V4 Flash
 //   images: NanoGPT GLM-5.3 Flash → Gonka GLM-5.3 Flash
 // pi thinking level "off" uses the plain DeepSeek variant, any other level the ":thinking" variant.
 // Failures: a transient error (timeout, 5xx, 429, reset) retries the same model once, then benches it for BENCH_MS and moves
@@ -20,8 +20,10 @@ const NG_GLM: Ref = { provider: NG, id: "z-ai/glm-5.3-flash" };
 const GK_GLM: Ref = { provider: GK, id: "zai-org/GLM-5.3-Flash" };
 const GK_DS: Ref = { provider: GK, id: "deepseek-ai/DeepSeek-V4-Flash-0731" };
 
-const CHAIN_PLAIN = [RW_PLAIN, DS_PLAIN, QWEN, GK_GLM, GK_DS];
-const CHAIN_THINK = [RW_THINK, DS_THINK, QWEN, GK_GLM, GK_DS];
+// Subagents have no one waiting on every token, so they take the cheaper direct NanoGPT route first (about a third cheaper than Runware).
+const CHEAP = process.env.PI_SUBAGENT_CHILD === "1";
+const CHAIN_PLAIN = CHEAP ? [DS_PLAIN, RW_PLAIN, QWEN, GK_GLM, GK_DS] : [RW_PLAIN, DS_PLAIN, QWEN, GK_GLM, GK_DS];
+const CHAIN_THINK = CHEAP ? [DS_THINK, RW_THINK, QWEN, GK_GLM, GK_DS] : [RW_THINK, DS_THINK, QWEN, GK_GLM, GK_DS];
 const CHAIN_IMAGE = [NG_GLM, GK_GLM];
 
 const BENCH_MS = 10 * 60_000;
