@@ -23,7 +23,7 @@ const NOTE_MAX = 14_000;
 export default function (pi: ExtensionAPI) {
 	if (process.env.PI_SUBAGENT_CHILD === "1" || process.env.PI_OPUS_CHILD === "1" || process.env.PI_DOCTOR === "1") return;
 	let request = "";
-	let pending: { prompt: string; handoff: string } | undefined;
+	let pending: { prompt: string; handoff: string; sent?: boolean } | undefined;
 	let toolCalls = 0;
 	let work: string | undefined;
 	let noteSaved = false; // the last settled run of THIS chat left a note
@@ -122,7 +122,7 @@ export default function (pi: ExtensionAPI) {
 		pending = { prompt: event.text, handoff: `(automatic hand-off: the previous chat was ~${Math.round(used / 1000)}k tokens; this is its saved note, state may have moved on, verify branch/PR status before acting)\n${note}` };
 		noteSaved = false;
 		ctx.ui.notify(`Новый чат: прошлый контекст (${Math.round(used / 1000)}k токенов) заменён заметкой с требованиями и отчётом. Старый чат: /resume`, "info");
-		setTimeout(() => pi.sendUserMessage("/fresh"), 0);
+		setTimeout(() => pi.sendUserMessage("/fresh", { expandPromptTemplates: true }), 0);
 		return { action: "handled" as const };
 	});
 
@@ -178,7 +178,15 @@ export default function (pi: ExtensionAPI) {
 
 	// the command runs once this turn has ended, so the session is not replaced under a running tool call
 	pi.on("agent_settled", async (e, ctx) => {
-		if (pending) return void pi.sendUserMessage("/fresh");
+		if (pending) {
+			// one attempt only: if the command did not run, drop the hand-off instead of re-sending "/fresh" after every run
+			if (pending.sent) pending = undefined;
+			else {
+				pending.sent = true;
+				pi.sendUserMessage("/fresh", { expandPromptTemplates: true });
+			}
+			return;
+		}
 		if (!e.aborted) await saveNote(ctx);
 	});
 
