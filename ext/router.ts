@@ -21,10 +21,11 @@ const GK_GLM: Ref = { provider: GK, id: "zai-org/GLM-5.3-Flash" };
 const GK_DS: Ref = { provider: GK, id: "deepseek-ai/DeepSeek-V4-Flash-0731" };
 
 // Subagents have no one waiting on every token, so they take the cheaper direct NanoGPT route first (about a third cheaper than Runware).
-const CHEAP = process.env.PI_SUBAGENT_CHILD === "1";
+// read per request, not at module load: the subagent runner sets the flag in its own process, possibly after this module was loaded
+const isChild = () => process.env.PI_SUBAGENT_CHILD === "1";
 // Qwen3 Coder is about 4x the price per step of DeepSeek (measured: $0.0035 vs $0.0009), so it is the last resort, behind the Gonka reserve.
-const CHAIN_PLAIN = CHEAP ? [DS_PLAIN, RW_PLAIN, GK_DS, GK_GLM, QWEN] : [RW_PLAIN, DS_PLAIN, GK_DS, GK_GLM, QWEN];
-const CHAIN_THINK = CHEAP ? [DS_THINK, RW_THINK, GK_DS, GK_GLM, QWEN] : [RW_THINK, DS_THINK, GK_DS, GK_GLM, QWEN];
+const chainPlain = () => (isChild() ? [DS_PLAIN, RW_PLAIN, GK_DS, GK_GLM, QWEN] : [RW_PLAIN, DS_PLAIN, GK_DS, GK_GLM, QWEN]);
+const chainThink = () => (isChild() ? [DS_THINK, RW_THINK, GK_DS, GK_GLM, QWEN] : [RW_THINK, DS_THINK, GK_DS, GK_GLM, QWEN]);
 const CHAIN_IMAGE = [NG_GLM, GK_GLM];
 
 const BENCH_MS = 10 * 60_000;
@@ -107,7 +108,7 @@ export default function (pi: ExtensionAPI) {
 
 			const level = request.thinkingLevel;
 			const image = hasImage(request.messages);
-			const chain = image ? CHAIN_IMAGE : level === "off" ? CHAIN_PLAIN : CHAIN_THINK;
+			const chain = image ? CHAIN_IMAGE : level === "off" ? chainPlain() : chainThink();
 			const fails = request.state?.fails ?? 0;
 
 			if (request.reason === "retry" && request.failed) {
@@ -136,7 +137,7 @@ export default function (pi: ExtensionAPI) {
 				if (canSeeImages && !backToText) return { model: prev, thinkingLevel: request.previous?.thinkingLevel ?? withLevel(prev, level), state: reset };
 			}
 			if (request.reason === "direct") {
-				const m = pick(CHAIN_PLAIN);
+				const m = pick(chainPlain());
 				return { model: m, thinkingLevel: withLevel(m, "off") };
 			}
 			const m = pick(chain);
