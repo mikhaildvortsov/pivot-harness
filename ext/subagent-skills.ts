@@ -20,7 +20,7 @@ export default function (pi: ExtensionAPI) {
 					`[subagent-skills] MANDATORY first step for this subtask: call find_skills with 5-10 English keywords for THIS subtask, ` +
 					`pick exactly ${REQUIRED_SKILLS} directly relevant skills from the aas/ecc results, read each SKILL.md fully with the read tool, ` +
 					"name them in one line with the reason, then do the subtask following them. Writing files is blocked until both are read. " +
-					"Cost rule: every step re-sends the whole context, so batch related commands (reads, greps, test runs that do not depend on each other) into ONE bash call instead of one command per step.",
+					"Cost rule: every step re-sends the whole context, so batch related commands (reads, greps, test runs that do not depend on each other) into ONE bash call instead of one command per step; create several files with ONE write_many call; read a file whole (or 300+ lines) instead of 40-line windows.",
 			},
 		};
 	});

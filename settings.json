@@ -82,6 +82,7 @@
       "~/.pi/agent/ext/nanogpt-guard.ts",
       "~/.pi/agent/ext/anti-laziness.ts",
       "~/.pi/agent/ext/output-trim.ts",
+      "~/.pi/agent/ext/batch-steps.ts",
       "~/.pi/agent/ext/git-guard.ts",
       "~/.pi/agent/ext/config-guard.ts",
       "~/.pi/agent/ext/skill-router.ts",
