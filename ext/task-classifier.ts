@@ -28,10 +28,11 @@ const LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh"] as const;
 type Level = (typeof LEVELS)[number];
 /** Thinking effort the declared task deserves; the user's own level is the ceiling (see below). */
 export function effortFor(c: TaskClass): Level {
+	if (c.security || c.fullstack || c.kind === "spec" || c.kind === "debug") return "high";
 	// "off" matters most: router/auto then uses the plain (non-thinking) DeepSeek variant, cheaper and faster for chores.
 	if (c.kind === "docs" || c.kind === "ops") return "off";
 	if (c.kind === "question") return "off";
-	if (c.security || c.fullstack || c.kind === "spec" || c.kind === "debug" || c.subtasks > 3) return "high";
+	if (c.kind === "code" && c.subtasks <= 1) return "off";
 	return "medium";
 }
 
@@ -126,7 +127,7 @@ export default function (pi: ExtensionAPI) {
 			if (current.fullstack && current.kind !== "spec")
 				steps.push(`Contract first: read ${join(SKILLS, "fullstack-plan", "SKILL.md")} and follow it before writing code.`);
 			if (current.subtasks > 3)
-				steps.push("More than 3 subtasks: write the plan, then implement via subagents (superpowers subagent-driven-development, `subagent` tool). Writing code yourself is blocked until the first subagent call.");
+				steps.push("Assess complexity and ownership before delegating. Plan-item count alone does not require subagents. Keep tightly coupled work direct; honor explicit user/repository delegation requirements.");
 			if (current.security) steps.push("Security-sensitive: object-level authorization and validation are mandatory; the final review is done by Opus 4.8.");
 			if (steps.length === 0) steps.push("Proceed: small change → do it directly with TDD and verification.");
 			const header = `Classified as ${current.kind}${verified.note ? ` (${verified.note})` : ""}.`;

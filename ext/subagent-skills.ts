@@ -1,44 +1,15 @@
-// Loaded ONLY in subagents (settings.json → subagents.defaultExtensions), never in the parent.
-// Every subagent starts its subtask by picking REQUIRED_SKILLS relevant skills from aas/ecc via find_skills and reading
-// them fully. Writers (write/edit) are blocked until that many distinct library SKILL.md files have been read.
+// Skill discovery is optional; exact user/task-required skills still apply.
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { isAbsolute, resolve } from "node:path";
-import { isLibrarySkill } from "./lib/skill-library.ts";
-
-const REQUIRED_SKILLS = 2;
 
 export default function (pi: ExtensionAPI) {
-	const read = new Set<string>();
-
 	pi.on("before_agent_start", async (event) => {
 		if (event.messageType !== "user") return;
 		return {
 			message: {
 				customType: "subagent-skills",
 				display: false,
-				content:
-					`[subagent-skills] MANDATORY first step for this subtask: call find_skills with 5-10 English keywords for THIS subtask, ` +
-					`pick exactly ${REQUIRED_SKILLS} directly relevant skills from the aas/ecc results, read each SKILL.md fully with the read tool, ` +
-					"name them in one line with the reason, then do the subtask following them. Writing files is blocked until both are read. " +
-					"Cost rule: every step re-sends the whole context, so batch related commands (reads, greps, test runs that do not depend on each other) into ONE bash call instead of one command per step; create several files with ONE write_many call; read a file whole (or 300+ lines) instead of 40-line windows.",
+				content: "[subagent-skills] Read exact user/task-required skills. Otherwise skills are optional: discover and read at most two only when they materially help this subtask. No skill quota before editing. Batch independent reads/checks; inspect targeted file ranges. Preserve required tests, review and safety checks.",
 			},
 		};
-	});
-
-	pi.on("tool_call", async (event, ctx) => {
-		const path = (event.input as { path?: string }).path;
-		if (event.toolName === "read" && path) {
-			const abs = isAbsolute(path) ? path : resolve(ctx.cwd, path);
-			if (isLibrarySkill(abs)) read.add(abs);
-			return;
-		}
-		if ((event.toolName === "write" || event.toolName === "edit") && read.size < REQUIRED_SKILLS) {
-			return {
-				block: true,
-				reason:
-					`subagent-skills: read ${REQUIRED_SKILLS} relevant aas/ecc skills before writing (read so far: ${read.size}). ` +
-					"Call find_skills with English keywords for this subtask, then read the two best SKILL.md files fully.",
-			};
-		}
 	});
 }

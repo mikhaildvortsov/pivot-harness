@@ -1,8 +1,9 @@
-// Where the money goes. Token savings are not cost savings (a cheaper-looking context can break the prompt cache and cost more), so this measures bills:
+// Configured-price estimates, never authoritative provider billing. Where the money goes. Token savings are not cost savings (a cheaper-looking context can break the prompt cache and cost more), so this measures configured-price estimates:
 // - every step's cache hit rate; a step that pays for fresh input right after cached steps is a "cache break" with a reason
 //   (compaction, another model/provider, a long pause, or the prefix changed) and the extra it cost;
 // - a notice when a break was expensive, and a line in state/cost-watch.jsonl;
-// - /cost: the chat's bill by token type, cache hit rate, breaks, thinking share of the output, and the fixed weight of every request.
+// - /cost: the chat's configured-price estimate by token type, cache hit rate, breaks, thinking share of the output, and the fixed weight of every request.
+import { installTaskBudget } from "./task-budget.ts";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { appendFileSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
@@ -11,11 +12,16 @@ import { dirname, join } from "node:path";
 const LOG = join(homedir(), ".pi", "agent", "state", "cost-watch.jsonl");
 const MIN_INPUT = 6_000; // below this a "break" is noise
 const NOTIFY_EXTRA = 0.01; // dollars
-const CACHE_READ_SHARE = 0.067; // cached input costs ~1/15 of fresh input on the NanoGPT DeepSeek route ($0.0095 vs $0.142 per million)
 const PAUSE_MS = 5 * 60_000;
 
 type Usage = { input?: number; output?: number; cacheRead?: number; cacheWrite?: number; cost?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number; total?: number } };
 type Entry = { type?: string; timestamp?: string; usage?: Usage; message?: { role?: string; provider?: string; model?: string; usage?: Usage; stopReason?: string; content?: unknown } };
+// Compare observed configured per-token rates only when both are available.
+export function cacheExtra(u: Usage): number | undefined {
+	const fresh = (u.input ?? 0) > 0 && u.cost?.input !== undefined ? u.cost.input / u.input! : 0;
+	const cached = (u.cacheRead ?? 0) > 0 && u.cost?.cacheRead !== undefined ? u.cost.cacheRead / u.cacheRead! : undefined;
+	return fresh > 0 && cached !== undefined ? Math.max(0, (fresh - cached) * (u.input ?? 0)) : undefined;
+}
 export type Step = { n: number; model: string; input: number; cacheRead: number; output: number; cost: number; fresh$: number; ratio: number; brk?: { reason: string; extra: number } };
 
 const ratioOf = (u: Usage) => {
@@ -34,7 +40,7 @@ export function analyze(entries: readonly Entry[]): Step[] {
 		if (e.type === "compaction") compacted = true;
 		if (e.type === "context_edit") edited = true;
 		const m = e.message;
-		if (e.type !== "message" || m?.role !== "assistant" || !m.usage || m.stopReason === "error" || !(m.usage.input || m.usage.cacheRead)) continue;
+		if (e.type !== "message" || m?.role !== "assistant" || !m.usage || !(m.usage.input || m.usage.cacheRead || m.usage.output || m.usage.cost?.total)) continue;
 		const u = m.usage;
 		const model = `${m.provider ?? ""}/${m.model ?? ""}`;
 		const ratio = ratioOf(u);
@@ -42,7 +48,7 @@ export function analyze(entries: readonly Entry[]): Step[] {
 		const at = ms(e);
 		if (step.input >= MIN_INPUT && ratio < 0.5 && (compacted || edited || (prev && prev.ratio >= 0.5))) {
 			const reason = compacted ? "компакция" : edited ? "повтор после сбоя провайдера" : prev && prev.model !== model ? "другая модель/провайдер" : prev && at - prev.at > PAUSE_MS ? "пауза > 5 мин" : (u.cacheRead ?? 0) < 1000 ? "провайдер не отдал кэш" : "префикс изменился";
-			step.brk = { reason, extra: step.fresh$ * (1 - CACHE_READ_SHARE) };
+			step.brk = { reason, extra: cacheExtra(u) ?? 0 };
 		}
 		compacted = false;
 		edited = false;
@@ -98,10 +104,10 @@ export function report(entries: readonly Entry[], fixed: { system: number; tools
 	const kinds = outputKinds(entries);
 	const chars = kinds.thinking + kinds.text + kinds.toolCall;
 	const lines = [
-		`Чат: ${steps.length} шагов, всего ${usd(total + compCost)}${compactions.length ? ` (шаги ${usd(total)} + вызовы суммаризации ${compactions.length} компакций ${usd(compCost)})` : ""}. Шаги: свежий вход ${usd(freshCost)} (${pct(freshCost, total)}), чтение кэша ${usd(cacheCost)} (${pct(cacheCost, total)}), вывод ${usd(outCost)} (${pct(outCost, total)}).`,
+		`Оценка по настроенным ценам (не счёт провайдера; включает прайс подписок): ${steps.length} шагов, всего ${usd(total + compCost)}${compactions.length ? ` (шаги ${usd(total)} + вызовы суммаризации ${compactions.length} компакций ${usd(compCost)})` : ""}. Шаги: свежий вход ${usd(freshCost)} (${pct(freshCost, total)}), чтение кэша ${usd(cacheCost)} (${pct(cacheCost, total)}), вывод ${usd(outCost)} (${pct(outCost, total)}).`,
 		`Кэш: ${pct(cached, inTok + cached)} входных токенов из кэша; свежих ${Math.round(inTok / 1000)}k, из кэша ${Math.round(cached / 1000)}k, вывод ${Math.round(out / 1000)}k.`,
 		breaks.length
-			? `Разрывы кэша: ${breaks.length}, лишние ${usd(sum((s) => s.brk?.extra ?? 0))} (${[...byReason].map(([r, v]) => `${r} ${v.n} / ${usd(v.extra)}`).join(", ")}).`
+			? `Разрывы кэша: ${breaks.length}, оценка разницы при известных ставках ${usd(sum((s) => s.brk?.extra ?? 0))} (${[...byReason].map(([r, v]) => `${r} ${v.n} / ${usd(v.extra)}`).join(", ")}).`
 			: "Разрывов кэша нет.",
 		chars ? `Вывод по символам: размышления ${pct(kinds.thinking, chars)}, текст ${pct(kinds.text, chars)}, аргументы вызовов ${pct(kinds.toolCall, chars)}.` : "",
 		`Вес каждого запроса (оценка символы/4): системный промпт ~${Math.round(fixed.system / 4000)}k, схемы ${fixed.toolCount} инструментов ~${Math.round(fixed.tools / 4000)}k токенов.`,
@@ -112,6 +118,7 @@ export function report(entries: readonly Entry[], fixed: { system: number; tools
 
 export default function (pi: ExtensionAPI) {
 	if (process.env.PI_SUBAGENT_CHILD === "1" || process.env.PI_OPUS_CHILD === "1" || process.env.PI_DOCTOR === "1") return;
+	installTaskBudget(pi);
 	let prev: { ratio: number; model: string; at: number } | undefined;
 	let compacted = false;
 	pi.on("session_start", async () => {
@@ -130,21 +137,21 @@ export default function (pi: ExtensionAPI) {
 		const now = Date.now();
 		if (input >= MIN_INPUT && ratio < 0.5 && (compacted || (prev && prev.ratio >= 0.5))) {
 			const reason = compacted ? "компакция" : prev && prev.model !== model ? "другая модель/провайдер" : prev && now - prev.at > PAUSE_MS ? "пауза > 5 мин" : (m.usage.cacheRead ?? 0) < 1000 ? "провайдер не отдал кэш" : "префикс изменился";
-			const extra = (m.usage.cost?.input ?? 0) * (1 - CACHE_READ_SHARE);
+			const extra = cacheExtra(m.usage) ?? 0;
 			try {
 				mkdirSync(dirname(LOG), { recursive: true });
 				appendFileSync(LOG, JSON.stringify({ at: new Date(now).toISOString(), session: ctx.sessionManager.getSessionFile?.(), model, reason, freshInput: input, extra: +extra.toFixed(4) }) + "\n");
 			} catch {
 				/* best effort */
 			}
-			if (extra >= NOTIFY_EXTRA && ctx.mode === "tui") ctx.ui.notify(`Кэш сломан (${reason}): свежих ${Math.round(input / 1000)}k токенов, лишние ${usd(extra)}. Подробности: /cost`, "warning");
+			if (extra >= NOTIFY_EXTRA && ctx.mode === "tui") ctx.ui.notify(`Кэш сломан (${reason}): свежих ${Math.round(input / 1000)}k токенов, оценка разницы ${usd(extra)}. Подробности: /cost`, "warning");
 		}
 		compacted = false;
 		prev = { ratio, model, at: now };
 	});
 
 	pi.registerCommand("cost", {
-		description: "Куда уходят деньги в этом чате: кэш, разрывы кэша, размышления, вес запроса",
+		description: "Оценка по настроенным ценам (не счёт): кэш, разрывы кэша, размышления, вес запроса",
 		handler: async (_args, ctx) => {
 			const active = new Set(pi.getActiveTools());
 			const tools = pi.getAllTools().filter((t) => active.has(t.name));
