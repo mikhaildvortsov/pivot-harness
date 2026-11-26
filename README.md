@@ -47,7 +47,7 @@ Opus никогда не пишет код: на спецификациях он
 ### Открытые модели: виртуальная модель `router/auto`
 В `/model` видны только `router/auto` и модели Anthropic (`enabledModels` в `settings.json`). Физическую модель выбирает роутер (`ext/router.ts`) и переключается по цепочке при сбоях. Полный список физических моделей: `pivot --list-models`.
 
-- Текст: NanoGPT DeepSeek V4.1 Flash 1017, закреплённый на провайдере Runware → тот же DeepSeek с автовыбором провайдера → NanoGPT Qwen3 Coder Next → Gonka GLM-5.3 Flash → Gonka DeepSeek V4 Flash.
+- Текст: NanoGPT DeepSeek V4.1 Flash 1017 напрямую (Runware из цепочки убран 26.11) → Gonka DeepSeek V4 Flash → Gonka GLM-5.3 Flash → NanoGPT Qwen3 Coder Next (последний, в 4 раза дороже за шаг).
 - Картинки: NanoGPT GLM-5.3 Flash → Gonka GLM-5.3 Flash.
 - Уровень thinking `off` даёт обычный DeepSeek, любой другой (по умолчанию `high`) даёт вариант `:thinking`.
 - GLM на Gonka всегда без thinking: в режиме рассуждения он печатает вызов инструмента сырым текстом.

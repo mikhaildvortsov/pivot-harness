@@ -13,7 +13,7 @@
 | Ревью подзадач у подагентов | Sonnet 5.5 (предложено, не закреплено) |
 
 ## Открытые модели: цепочка роутера `router/auto` (ext/router.ts)
-Текст: NanoGPT DeepSeek V4.1 Flash 1017 с закреплённым Runware (`nanogpt-runware`, заголовок `X-Provider: runware`) → тот же DeepSeek с автовыбором провайдера → NanoGPT Qwen3 Coder Next → Gonka GLM-5.3 Flash → Gonka DeepSeek V4 Flash.
+Текст: NanoGPT DeepSeek V4.1 Flash 1017 напрямую (Runware с 26.11 из цепочки убран, для сравнения счёта) → Gonka DeepSeek V4 Flash → Gonka GLM-5.3 Flash → NanoGPT Qwen3 Coder Next (последний, он в 4 раза дороже за шаг).
 Картинки: NanoGPT GLM-5.3 Flash → Gonka GLM-5.3 Flash.
 Уровень thinking pi `off` = обычный DeepSeek, любой другой = вариант `:thinking` (по умолчанию `high`).
 
