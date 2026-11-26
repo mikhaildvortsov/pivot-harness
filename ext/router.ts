@@ -28,7 +28,7 @@ const SAME_MODEL_RETRIES = 0;
 // A refused/reset connection is a network blip (it hits every NanoGPT model at once): bench briefly instead of for 10 minutes, so the run does not sit on a fallback.
 const NETWORK_BLIP = /ECONNREFUSED|ECONNRESET|connection error|fetch failed|EPIPE|socket/i;
 const BLIP_BENCH_MS = 45_000;
-const PROVIDER_DOWN = /\b(401|402|403)\b|unauthori[sz]ed|forbidden|insufficient|balance|credit|payment|invalid api key|no api key/i;
+const PROVIDER_DOWN = /\b(401|402|403)\b|unauthori[sz]ed|forbidden|insufficient|balance|credit|payment|invalid api key|no api key|billing\s+reservation\s+failed/i;
 const TRANSIENT = /timeout|timed out|idle|stalled|ECONNRESET|ETIMEDOUT|EPIPE|socket|connection|closed|stopped sending|fetch failed|\b5\d\d\b|upstream|unavailable|overloaded|rate.?limit|\b429\b/i;
 
 type State = { fails: number };

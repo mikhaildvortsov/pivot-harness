@@ -11,7 +11,7 @@ import { resolveCompletionsStream } from "./stream-watchdog.ts";
 
 const PROVIDER = "nanogpt";
 const PROVIDERS = [PROVIDER, "nanogpt-runware"]; // Runware-pinned copy shares the account and the same failure handling
-const AUTH_OR_BILLING = /\b(401|402|403)\b|invalid[_ ]api[_ ]key|invalid session|unauthori[sz]ed|forbidden|insufficient|balance|payment required/i;
+const AUTH_OR_BILLING = /\b(401|402|403)\b|invalid[_ ]api[_ ]key|invalid session|unauthori[sz]ed|forbidden|insufficient|balance|payment required|billing\s+reservation\s+failed/i;
 const DOWN_MS = 60 * 60_000;
 const BALANCE_URL = "https://nano-gpt.com/api/check-balance";
 const BALANCE_CHECK_MS = 30 * 60_000;
