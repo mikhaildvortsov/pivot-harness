@@ -20,14 +20,9 @@ const NG_GLM: Ref = { provider: NG, id: "z-ai/glm-5.3-flash" };
 const GK_GLM: Ref = { provider: GK, id: "zai-org/GLM-5.3-Flash" };
 const GK_DS: Ref = { provider: GK, id: "deepseek-ai/DeepSeek-V4-Flash-0731" };
 
-// Subagents have no one waiting on every token, so they take the cheaper direct NanoGPT route first (about a third cheaper than Runware).
-// A subagent session is recognised per request, from its own messages (subagent-skills.ts injects "[subagent-skills]" at the start of every subagent run),
-// and by the process flag as a second signal. Neither depends on whether the child is a separate process or runs inside the parent.
-const markerIn = (m: unknown) => JSON.stringify((m as { content?: unknown })?.content ?? "").includes("[subagent-skills]");
-const isChild = (messages: readonly unknown[]) => process.env.PI_SUBAGENT_CHILD === "1" || messages.slice(0, 8).some(markerIn);
 // Qwen3 Coder is about 4x the price per step of DeepSeek (measured: $0.0035 vs $0.0009), so it is the last resort, behind the Gonka reserve.
-const chainPlain = (child: boolean) => (child ? [DS_PLAIN, RW_PLAIN, GK_DS, GK_GLM, QWEN] : [RW_PLAIN, DS_PLAIN, GK_DS, GK_GLM, QWEN]);
-const chainThink = (child: boolean) => (child ? [DS_THINK, RW_THINK, GK_DS, GK_GLM, QWEN] : [RW_THINK, DS_THINK, GK_DS, GK_GLM, QWEN]);
+const CHAIN_PLAIN = [RW_PLAIN, DS_PLAIN, GK_DS, GK_GLM, QWEN];
+const CHAIN_THINK = [RW_THINK, DS_THINK, GK_DS, GK_GLM, QWEN];
 const CHAIN_IMAGE = [NG_GLM, GK_GLM];
 
 const BENCH_MS = 10 * 60_000;
@@ -39,7 +34,7 @@ const BLIP_BENCH_MS = 45_000;
 const PROVIDER_DOWN = /\b(401|402|403)\b|unauthori[sz]ed|forbidden|insufficient|balance|credit|payment|invalid api key|no api key/i;
 const TRANSIENT = /timeout|timed out|idle|stalled|ECONNRESET|ETIMEDOUT|EPIPE|socket|connection|closed|stopped sending|fetch failed|\b5\d\d\b|upstream|unavailable|overloaded|rate.?limit|\b429\b/i;
 
-type State = { fails: number; child?: boolean }; // child: this session was recognised as a subagent (kept, because compaction can drop the marker message)
+type State = { fails: number };
 const key = (r: Ref) => `${r.provider}/${r.id}`;
 const benchedUntil = new Map<string, number>();
 // nanogpt-runware shares the NanoGPT account: auth/billing failures bench both.
@@ -87,7 +82,6 @@ export default function (pi: ExtensionAPI) {
 		maxTokens: 32_768,
 		input: ["text", "image"],
 		route(request, ctx) {
-			const child = request.state?.child === true || isChild(request.messages);
 			const reg = ctx.modelRegistry;
 			const usable = (r: Ref) => {
 				const m = reg.find(r.provider, r.id);
@@ -111,7 +105,7 @@ export default function (pi: ExtensionAPI) {
 
 			const level = request.thinkingLevel;
 			const image = hasImage(request.messages);
-			const chain = image ? CHAIN_IMAGE : level === "off" ? chainPlain(child) : chainThink(child);
+			const chain = image ? CHAIN_IMAGE : level === "off" ? CHAIN_PLAIN : CHAIN_THINK;
 			const fails = request.state?.fails ?? 0;
 
 			if (request.reason === "retry" && request.failed) {
@@ -120,16 +114,16 @@ export default function (pi: ExtensionAPI) {
 				if (PROVIDER_DOWN.test(err)) {
 					benchedUntil.set(family(failed.provider), Date.now() + PROVIDER_BENCH_MS);
 					const m = pick(chain);
-					return { model: m, thinkingLevel: withLevel(m, level), state: { fails: 0, child } };
+					return { model: m, thinkingLevel: withLevel(m, level), state: { fails: 0 } };
 				}
 				if (!TRANSIENT.test(err)) return { model: failed, thinkingLevel: request.failed.thinkingLevel ?? level };
-				if (fails < SAME_MODEL_RETRIES) return { model: failed, thinkingLevel: request.failed.thinkingLevel ?? level, state: { fails: fails + 1, child } };
+				if (fails < SAME_MODEL_RETRIES) return { model: failed, thinkingLevel: request.failed.thinkingLevel ?? level, state: { fails: fails + 1 } };
 				benchedUntil.set(key({ provider: failed.provider, id: failed.id }), Date.now() + (NETWORK_BLIP.test(err) ? BLIP_BENCH_MS : BENCH_MS));
 				const m = pick(chain);
-				return { model: m, thinkingLevel: withLevel(m, level), state: { fails: 0, child } };
+				return { model: m, thinkingLevel: withLevel(m, level), state: { fails: 0 } };
 			}
 
-			const reset = fails !== 0 || child !== (request.state?.child === true) ? { fails: 0, child } : undefined;
+			const reset = fails !== 0 ? { fails: 0 } : undefined;
 			const prev = request.previous?.model;
 			// Tool follow-ups stay on the model that started the turn (prompt cache), unless it was benched meanwhile.
 			if (request.reason === "continuation" && prev && !isBenched({ provider: prev.provider, id: prev.id })) {
@@ -140,7 +134,7 @@ export default function (pi: ExtensionAPI) {
 				if (canSeeImages && !backToText) return { model: prev, thinkingLevel: request.previous?.thinkingLevel ?? withLevel(prev, level), state: reset };
 			}
 			if (request.reason === "direct") {
-				const m = pick(chainPlain(child));
+				const m = pick(CHAIN_PLAIN);
 				return { model: m, thinkingLevel: withLevel(m, "off") };
 			}
 			const m = pick(chain);
