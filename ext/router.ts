@@ -22,13 +22,17 @@ const GK_DS: Ref = { provider: GK, id: "deepseek-ai/DeepSeek-V4-Flash-0731" };
 
 // Subagents have no one waiting on every token, so they take the cheaper direct NanoGPT route first (about a third cheaper than Runware).
 const CHEAP = process.env.PI_SUBAGENT_CHILD === "1";
-const CHAIN_PLAIN = CHEAP ? [DS_PLAIN, RW_PLAIN, QWEN, GK_GLM, GK_DS] : [RW_PLAIN, DS_PLAIN, QWEN, GK_GLM, GK_DS];
-const CHAIN_THINK = CHEAP ? [DS_THINK, RW_THINK, QWEN, GK_GLM, GK_DS] : [RW_THINK, DS_THINK, QWEN, GK_GLM, GK_DS];
+// Qwen3 Coder is about 4x the price per step of DeepSeek (measured: $0.0035 vs $0.0009), so it is the last resort, behind the Gonka reserve.
+const CHAIN_PLAIN = CHEAP ? [DS_PLAIN, RW_PLAIN, GK_DS, GK_GLM, QWEN] : [RW_PLAIN, DS_PLAIN, GK_DS, GK_GLM, QWEN];
+const CHAIN_THINK = CHEAP ? [DS_THINK, RW_THINK, GK_DS, GK_GLM, QWEN] : [RW_THINK, DS_THINK, GK_DS, GK_GLM, QWEN];
 const CHAIN_IMAGE = [NG_GLM, GK_GLM];
 
 const BENCH_MS = 10 * 60_000;
 const PROVIDER_BENCH_MS = 60 * 60_000;
 const SAME_MODEL_RETRIES = 1;
+// A refused/reset connection is a network blip (it hits every NanoGPT model at once): bench briefly instead of for 10 minutes, so the run does not sit on a fallback.
+const NETWORK_BLIP = /ECONNREFUSED|ECONNRESET|connection error|fetch failed|EPIPE|socket/i;
+const BLIP_BENCH_MS = 45_000;
 const PROVIDER_DOWN = /\b(401|402|403)\b|unauthori[sz]ed|forbidden|insufficient|balance|credit|payment|invalid api key|no api key/i;
 const TRANSIENT = /timeout|timed out|idle|stalled|ECONNRESET|ETIMEDOUT|EPIPE|socket|connection|closed|stopped sending|fetch failed|\b5\d\d\b|upstream|unavailable|overloaded|rate.?limit|\b429\b/i;
 
@@ -116,7 +120,7 @@ export default function (pi: ExtensionAPI) {
 				}
 				if (!TRANSIENT.test(err)) return { model: failed, thinkingLevel: request.failed.thinkingLevel ?? level };
 				if (fails < SAME_MODEL_RETRIES) return { model: failed, thinkingLevel: request.failed.thinkingLevel ?? level, state: { fails: fails + 1 } };
-				benchedUntil.set(key({ provider: failed.provider, id: failed.id }), Date.now() + BENCH_MS);
+				benchedUntil.set(key({ provider: failed.provider, id: failed.id }), Date.now() + (NETWORK_BLIP.test(err) ? BLIP_BENCH_MS : BENCH_MS));
 				const m = pick(chain);
 				return { model: m, thinkingLevel: withLevel(m, level), state: { fails: 0 } };
 			}
