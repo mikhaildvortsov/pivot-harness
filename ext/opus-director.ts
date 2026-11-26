@@ -10,6 +10,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Type } from "typebox";
+import { anthropicUnavailable, FALLBACK } from "./lib/fallback.ts";
 
 const OPUS_PROVIDER = "anthropic";
 const OPUS_ID = "claude-opus-5-5";
@@ -68,12 +69,18 @@ export default function (pi: ExtensionAPI) {
 	let reviewedState: string | undefined;
 
 	const runOpus = async (cwd: string, brief: string, body: string, modelId: string = OPUS_ID) => {
-		const inv = piInvocation([
-			"-p", "--no-session", "--model", `${OPUS_PROVIDER}/${modelId}`, "--thinking", "high",
-			"--tools", "read,grep,find,ls", "--append-system-prompt", brief, body,
-		]);
-		const r = await pi.exec("env", ["PI_OPUS_CHILD=1", "PI_SUBAGENT_CHILD=1", "PI_GATE=off", inv.cmd, ...inv.args], { cwd, timeout: CHILD_TIMEOUT_MS });
-		return { ok: r.code === 0 && r.stdout.trim().length > 0, text: r.stdout.trim() || r.stderr.trim().slice(-1500), code: r.code };
+		const run = async (model: string, thinking: string) => {
+			const inv = piInvocation(["-p", "--no-session", "--model", model, "--thinking", thinking, "--tools", "read,grep,find,ls", "--append-system-prompt", brief, body]);
+			const r = await pi.exec("env", ["PI_OPUS_CHILD=1", "PI_SUBAGENT_CHILD=1", "PI_GATE=off", inv.cmd, ...inv.args], { cwd, timeout: CHILD_TIMEOUT_MS });
+			return { ok: r.code === 0 && r.stdout.trim().length > 0, text: r.stdout.trim() || r.stderr.trim().slice(-1500), code: r.code };
+		};
+		const first = await run(`${OPUS_PROVIDER}/${modelId}`, "high");
+		// Anthropic quota ended or the API is blocked: the same task goes to GPT-6.1 Sol with high reasoning
+		if (!first.ok && anthropicUnavailable(first.text)) {
+			const second = await run(`${FALLBACK.provider}/${FALLBACK.id}`, FALLBACK.thinking);
+			if (second.ok) return { ...second, text: `[${FALLBACK.label}: Anthropic unavailable]\n${second.text}` };
+		}
+		return first;
 	};
 
 	const git = async (cwd: string, script: string) => (await pi.exec("bash", ["-c", script], { cwd, timeout: 30_000 })).stdout;
