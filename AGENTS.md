@@ -6,7 +6,7 @@ Before any work, check `./AGENTS.local.md` (repo root) and `~/.pi/agent/local/AG
 Reply in the user's language (Russian if the user writes in Russian), including questions, reports and spec texts; code, identifiers and commit messages stay in English.
 
 ## 1. Mode: decide yourself, do not ask
-- First, for every new request: call `classify_task` (judge by meaning). Hooks route by your declaration: `spec` → Opus leads (`spec_mode`: `materials` = spec strictly from the instructions/files the user gave, `speckit` = from scratch through spec-kit); `security` → Opus 4.8 review; `fullstack` → contract first; `subtasks` > 3 → swarm; `use_skills` → skill search. Follow the next steps it returns.
+- First, for every new request: call `classify_task` (judge by meaning). Hooks route by your declaration: `spec` → Opus leads (`spec_mode`: `materials` = spec strictly from the instructions/files the user gave, `speckit` = from scratch through spec-kit); `security` → Opus 4.8 review; `fullstack` → contract first; `subtasks` > 3 → assess complexity; `use_skills` → skill search. Follow the next steps it returns.
 - Small, single-concern change (≈1–3 files, no auth/data/migration): do it directly.
 - Multi-step feature, cross-layer (backend ↔ frontend), auth/security/data change, or unclear scope: follow the superpowers process — brainstorming → writing-plans (or the `fullstack-plan` skill for backend↔frontend) → test-driven-development → verification-before-completion → `critic` skill → finishing-a-development-branch.
 - Ask the user only for irreversible, security, billing, or genuinely ambiguous product decisions. Otherwise state your assumption in one line and proceed.
@@ -14,16 +14,16 @@ Reply in the user's language (Russian if the user writes in Russian), including 
 
 ## 1b. Swarm mode (subagents) — decide yourself
 The `subagent` tool (pi-subagents) runs subagents with a fresh context; superpowers maps "dispatch a subagent" to it.
-- MANDATORY when the plan has more than 3 subtasks: implement them through subagents (a hook blocks writing code yourself until the first `subagent` call). Dependent subtasks go one after another, still via subagents.
+- Delegation is optional unless explicitly required by the user/repository. Judge independent ownership, complexity and review needs; plan-item count alone never mandates subagents. Keep small tightly coupled changes direct.
 - Optional for 2–3 subtasks: use the swarm if the work spans separate areas (e.g. backend and frontend after the contract is fixed) or a fresh-context review is needed. Otherwise work alone — one agent is cheaper.
-- Plan files the hook reads: `.pi/context/plan.md`, `docs/superpowers/plans/*.md`, `docs/plans/*.md` (subtasks = `### Task N` headings or numbered items under `## Plan`).
-- Flow: write the plan/contract first (writing-plans or `fullstack-plan`) to `.pi/context/plan.md`, then follow superpowers `subagent-driven-development`: one `worker` per subtask, a `reviewer` after each.
+- A plan with many steps may remain direct when the steps share files/contracts or are routine checks.
+- When delegating: define the plan/contract and ownership first; use a reviewer when risk or task requirements justify it. Preserve all required checks and reviews.
 - Brief each subagent like a peer who knows nothing: the exact subtask text, the plan/contract path, files it owns, the checks to run, and what to return. Never pass the whole conversation.
 - Run subtasks that touch the same files sequentially; parallel (`tasks: [...]`) only for disjoint files. Max 4 in parallel. Items in `tasks` take only `agent` and `task` (no `label`).
 - Do not trust subagent reports: after they finish, check `git diff` and run the checks yourself before reporting done.
 
 ## 1a. Skill library on demand
-The aas (agentic-awesome-skills) and ecc skill libraries (~2600 skills, newest installed Claude plugin versions) are NOT listed in this prompt. Every subagent must pick and read 2 of them at the start of its subtask (enforced by a hook). Whenever the user asks — in any wording or language ("подбери скиллы", "используй подходящие навыки", "what skills fit here") — to pick, find or use skills for the task: call `find_skills` with 5–10 English keywords describing the task, choose at most 2 that directly fit, read their `SKILL.md` fully, name them in one line with the reason, then follow them. Never claim to use a skill you have not read.
+The aas (agentic-awesome-skills) and ecc skill libraries (~2600 skills, newest installed Claude plugin versions) are NOT listed in this prompt. Skills are optional unless named or required by the user/task/repository; read those exact skills. No minimum skill count for subagents. Whenever the user asks — in any wording or language ("подбери скиллы", "используй подходящие навыки", "what skills fit here") — to pick, find or use skills for the task: call `find_skills` with 5–10 English keywords describing the task, choose at most 2 that directly fit, read their `SKILL.md` fully, name them in one line with the reason, then follow them. Never claim to use a skill you have not read.
 
 ## 2. No stubs, no corner cutting
 Forbidden in code you write: `TODO`, `FIXME`, `XXX`, `NotImplementedError`, bare `pass` as a placeholder, empty `catch {}` / `except: pass`, `as any`, `@ts-ignore`, `@ts-expect-error`. Implement fully or report the exact blocker. Never weaken, skip, or delete tests/lint/type checks to make them pass.

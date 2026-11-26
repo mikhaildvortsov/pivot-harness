@@ -1,8 +1,8 @@
 // Virtual model router/auto: picks the physical model per request and fails over along a chain.
-//   text:   NanoGPT DeepSeek V4.1 Flash 1017 pinned to Runware (fastest in the 2026-11-24 benchmark; subagents start with the cheaper direct NanoGPT route) → same, auto provider → NanoGPT Qwen3 Coder Next → Gonka GLM-5.3 Flash → Gonka DeepSeek V4 Flash
+//   text: NanoGPT DeepSeek plain/thinking → Gonka DeepSeek → Gonka GLM → NanoGPT Qwen (last resort)
 //   images: NanoGPT GLM-5.3 Flash → Gonka GLM-5.3 Flash
 // pi thinking level "off" uses the plain DeepSeek variant, any other level the ":thinking" variant.
-// Failures: a transient error (timeout, 5xx, 429, reset) retries the same model once, then benches it for BENCH_MS and moves
+// Failures: a transient error (timeout, 5xx, 429, reset) benches the failed model immediately for BENCH_MS and moves
 // on. An auth/billing error (401/402/403, insufficient balance) benches the whole provider for PROVIDER_BENCH_MS — so when
 // the NanoGPT balance runs out, work continues on the Gonka reserve. Missing credentials skip a provider silently.
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
@@ -24,7 +24,7 @@ const CHAIN_IMAGE = [NG_GLM, GK_GLM];
 
 const BENCH_MS = 10 * 60_000;
 const PROVIDER_BENCH_MS = 60 * 60_000;
-const SAME_MODEL_RETRIES = 1;
+const SAME_MODEL_RETRIES = 0;
 // A refused/reset connection is a network blip (it hits every NanoGPT model at once): bench briefly instead of for 10 minutes, so the run does not sit on a fallback.
 const NETWORK_BLIP = /ECONNREFUSED|ECONNRESET|connection error|fetch failed|EPIPE|socket/i;
 const BLIP_BENCH_MS = 45_000;
@@ -89,12 +89,7 @@ export default function (pi: ExtensionAPI) {
 					const m = usable(r);
 					if (m) return m;
 				}
-				// Everything benched or unauthenticated: take the first model that exists rather than dead-ending.
-				for (const r of chain) {
-					const m = reg.find(r.provider, r.id);
-					if (m) return m;
-				}
-				throw new Error("router: no model of the chain is configured in models.json");
+				throw new Error("router: no authenticated, unbenched model is available in the chain");
 			};
 			// NanoGPT picks thinking by model id. Gonka GLM in thinking mode prints tool calls as raw text, so it always runs with thinking off.
 			const withLevel = (model: { provider: string; id: string }, level: typeof request.thinkingLevel) =>
@@ -128,7 +123,8 @@ export default function (pi: ExtensionAPI) {
 				// A screenshot from a tool is read by the vision model for one step; the rest of the turn returns to the cheaper text model.
 				// (An image the user attached stays with the vision model for the whole turn: the text model would only see a placeholder.)
 				const backToText = !image && CHAIN_IMAGE.some((r) => r.provider === prev.provider && r.id === prev.id) && !promptHasImage(request.messages);
-				if (canSeeImages && !backToText) return { model: prev, thinkingLevel: request.previous?.thinkingLevel ?? withLevel(prev, level), state: reset };
+				const changedVariant = (prev.id === DS_PLAIN.id || prev.id === DS_THINK.id) && prev.provider === NG && prev.id !== (level === "off" ? DS_PLAIN.id : DS_THINK.id);
+				if (canSeeImages && !backToText && !changedVariant) return { model: prev, thinkingLevel: request.previous?.thinkingLevel ?? withLevel(prev, level), state: reset };
 			}
 			if (request.reason === "direct") {
 				const m = pick(CHAIN_PLAIN);

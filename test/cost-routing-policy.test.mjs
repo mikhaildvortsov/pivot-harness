@@ -1,0 +1,57 @@
+import { fileURLToPath } from 'node:url';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { loadExtensions } from '/Users/dvortsovmikhail/.npm-global/lib/node_modules/@earendil-works/pi-coding-agent/dist/core/extensions/loader.js';
+import { effortFor } from '../ext/task-classifier.ts';
+const root = fileURLToPath(new URL('..', import.meta.url));
+const basic={kind:'code',security:false,fullstack:false,subtasks:1};
+assert.equal(effortFor(basic),'off');
+assert.equal(effortFor({...basic,security:true}),'high');
+assert.equal(effortFor({...basic,kind:'docs',security:true}),'high');
+assert.equal(effortFor({...basic,kind:'spec'}),'high');
+assert.equal(effortFor({...basic,kind:'debug'}),'high');
+assert.equal(effortFor({...basic,subtasks:5}),'medium');
+const paths=['router','task-classifier','subagent-skills','swarm-gate'].map(x=>`${root}/ext/${x}.ts`);
+const loaded=await loadExtensions(paths,root);
+assert.deepEqual(loaded.errors,[]);
+assert.equal(loaded.extensions.length,4);
+const registration=loaded.runtime.pendingVirtualModelRegistrations.find(x=>x.definition.provider==='router');
+assert.ok(registration,'real installed extension loader registers router/auto');
+const names=[['nanogpt','deepseek/deepseek-v4.1-flash-1017'],['nanogpt','deepseek/deepseek-v4.1-flash-1017:thinking'],['gonka','deepseek-ai/DeepSeek-V4-Flash-0731'],['gonka','zai-org/GLM-5.3-Flash'],['nanogpt','qwen/qwen3-coder-next'],['nanogpt','z-ai/glm-5.3-flash']];
+const models=names.map(([provider,id])=>({provider,id,input:id.includes('glm')||id.includes('GLM')?['text','image']:['text']}));
+loaded.runtime.createContext=()=>({modelRegistry:{find:(p,id)=>models.find(m=>m.provider===p&&m.id===id),hasConfiguredAuth:()=>true}});
+const route=registration.definition.route;
+const req={reason:'initial',messages:[],thinkingLevel:'off'};
+assert.equal(route(req).model.id,names[0][1]);
+assert.equal(route({...req,thinkingLevel:'high'}).model.id,names[1][1]);
+const first=route(req);
+assert.equal(route({...req,reason:'continuation',previous:first}).model.id,first.model.id);
+const raised=route({...req,reason:'continuation',previous:first,thinkingLevel:'high'});
+assert.equal(raised.model.id,names[1][1]);
+assert.equal(route({...req,reason:'continuation',previous:raised}).model.id,names[0][1]);
+const vision=route({...req,messages:[{role:'user',content:[{type:'image'}]}]});
+assert.equal(vision.model.id,names[5][1]);
+assert.equal(route({...req,reason:'continuation',previous:first,messages:[{role:'toolResult',content:[{type:'image'}]}]}).model.id,names[5][1]);
+assert.equal(route({...req,reason:'continuation',previous:vision,messages:[]}).model.id,names[0][1]);
+const retry=(previous,errorMessage='503 unavailable')=>route({...req,reason:'retry',state:previous.state,failed:{model:previous.model,thinkingLevel:previous.thinkingLevel,message:{errorMessage}}});
+const second=retry(first); const third=retry(second); const last=retry(third);
+assert.deepEqual([first,second,third,last].map(x=>x.model.id),[names[0][1],names[2][1],names[3][1],names[4][1]]);
+assert.equal(third.thinkingLevel,'off');
+assert.throws(()=>retry(last,'402 insufficient balance'),/no authenticated, unbenched model/);
+const now=Date.now;
+try {
+ Date.now=()=>now()+2*60*60*1000;
+ assert.equal(retry(first,'402 insufficient balance').model.provider,'gonka');
+} finally { Date.now=now; }
+loaded.runtime.createContext=()=>({modelRegistry:{find:(p,id)=>models.find(m=>m.provider===p&&m.id===id),hasConfiguredAuth:()=>false}});
+assert.throws(()=>route(req),/no authenticated, unbenched model/);
+const settings=JSON.parse(readFileSync(`${root}/settings.json`,'utf8'));
+assert.equal(settings.defaultProvider,'router'); assert.equal(settings.defaultModel,'auto');
+assert.equal(settings.retry.maxRetries,3); assert.ok(settings.extensions.includes('ext/router.ts'));
+for(const name of ['subagent-skills','swarm-gate']) {
+ const ext=loaded.extensions.find(x=>x.path.endsWith(`${name}.ts`));
+ assert.equal(ext.handlers.has('tool_call'),false,`${name} cannot block writes based on quota`);
+}
+const cls=loaded.extensions.find(x=>x.path.endsWith('task-classifier.ts'));
+assert.ok(cls.tools.has('classify_task'));
+console.log('PASS: real loader 4 extensions; plain/thinking, continuation, vision, 4-step fallback, auth fallback, settings, optional skills/delegation. No model/network calls.');

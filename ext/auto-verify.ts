@@ -57,6 +57,8 @@ function detect(root: string, changed: string[]): Check[] {
 export default function (pi: ExtensionAPI) {
 	let retries = 0;
 	let lastFailure = "";
+	let identicalFailures = 0;
+	let halted = false;
 	let baseline: string | undefined;
 
 	// Fingerprint of the working tree; pre-existing dirty state alone must not trigger checks.
@@ -69,9 +71,12 @@ export default function (pi: ExtensionAPI) {
 		return r.code === 0 ? r.stdout : undefined;
 	};
 
-	pi.on("input", async () => {
+	pi.on("input", async (event) => {
+		if (event.source === "extension" || event.streamingBehavior) return;
 		retries = 0;
 		lastFailure = "";
+		identicalFailures = 0;
+		halted = false;
 	});
 
 	pi.on("agent_start", async (_event, ctx) => {
@@ -81,7 +86,7 @@ export default function (pi: ExtensionAPI) {
 	// agent_before_settle (not agent_end): the last point where pi lets an extension request another turn;
 	// agent_end + sendMessage is dropped in print/JSON mode because the process exits first.
 	pi.on("agent_before_settle", async (event, ctx) => {
-		if (event.outcome !== "completed") return;
+		if (event.outcome !== "completed" || halted) return;
 		const top = await pi.exec("git", ["rev-parse", "--show-toplevel"], { cwd: ctx.cwd, timeout: 10_000 });
 		if (top.code !== 0) return;
 		const root = top.stdout.trim();
@@ -108,13 +113,27 @@ export default function (pi: ExtensionAPI) {
 		}
 		if (failures.length === 0) {
 			lastFailure = "";
+			identicalFailures = 0;
 			return;
 		}
 		const report = failures.join("\n\n");
-		if (retries >= MAX_RETRIES) {
-			if (report !== lastFailure) ctx.ui.notify(`auto-verify: checks still failing after ${MAX_RETRIES} retries`, "warning");
+		identicalFailures = report === lastFailure ? identicalFailures + 1 : 1;
+		if (identicalFailures >= 2 || retries >= MAX_RETRIES) {
+			halted = true;
 			lastFailure = report;
-			return;
+			const unresolved = `auto-verify: UNRESOLVED required checks; automatic repair stopped ` +
+				`(${identicalFailures} identical failures, ${retries} retries). Do not report success. ` +
+				`Fix the cause and rerun all failing checks explicitly.\n\n${report}`;
+			ctx.ui.notify(unresolved, "warning");
+			return {
+				entries: [...event.entries, {
+					type: "custom_message" as const,
+					customType: "auto-verify-unresolved",
+					content: unresolved,
+					display: true,
+				}],
+				continue: false,
+			};
 		}
 		retries++;
 		lastFailure = report;
