@@ -9,10 +9,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 type Ref = { provider: string; id: string };
 const NG = "nanogpt";
-const NG_RW = "nanogpt-runware";
 const GK = "gonka";
-const RW_PLAIN: Ref = { provider: NG_RW, id: "deepseek/deepseek-v4.1-flash-1017" };
-const RW_THINK: Ref = { provider: NG_RW, id: "deepseek/deepseek-v4.1-flash-1017:thinking" };
 const DS_PLAIN: Ref = { provider: NG, id: "deepseek/deepseek-v4.1-flash-1017" };
 const DS_THINK: Ref = { provider: NG, id: "deepseek/deepseek-v4.1-flash-1017:thinking" };
 const QWEN: Ref = { provider: NG, id: "qwen/qwen3-coder-next" };
@@ -20,9 +17,9 @@ const NG_GLM: Ref = { provider: NG, id: "z-ai/glm-5.3-flash" };
 const GK_GLM: Ref = { provider: GK, id: "zai-org/GLM-5.3-Flash" };
 const GK_DS: Ref = { provider: GK, id: "deepseek-ai/DeepSeek-V4-Flash-0731" };
 
-// Qwen3 Coder is about 4x the price per step of DeepSeek (measured: $0.0035 vs $0.0009), so it is the last resort, behind the Gonka reserve.
-const CHAIN_PLAIN = [RW_PLAIN, DS_PLAIN, GK_DS, GK_GLM, QWEN];
-const CHAIN_THINK = [RW_THINK, DS_THINK, GK_DS, GK_GLM, QWEN];
+// NanoGPT direct only (Runware dropped on purpose, to compare the bill); Qwen3 Coder is about 4x the price per step of DeepSeek (measured: $0.0035 vs $0.0009), so it is the last resort, behind the Gonka reserve.
+const CHAIN_PLAIN = [DS_PLAIN, GK_DS, GK_GLM, QWEN];
+const CHAIN_THINK = [DS_THINK, GK_DS, GK_GLM, QWEN];
 const CHAIN_IMAGE = [NG_GLM, GK_GLM];
 
 const BENCH_MS = 10 * 60_000;

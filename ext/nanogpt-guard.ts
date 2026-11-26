@@ -76,18 +76,18 @@ export default function (pi: ExtensionAPI) {
 		}
 	};
 	// The footer balance used to go stale in a long autonomous run (it was refreshed only at start, before a prompt and after a settled task):
-	// poll every 3 minutes while the session lives, so it tracks the real balance within a few cents.
+	// poll every 30 seconds while the session lives, so it tracks the real balance within a cent or two.
 	let poll: ReturnType<typeof setInterval> | undefined;
 	pi.on("session_start", async (_e, ctx) => {
 		void check((m, l) => ctx.ui.notify(m, l));
 		clearInterval(poll);
 		poll = setInterval(() => {
 			try {
-				void check((m, l) => ctx.ui.notify(m, l), 150_000);
+				void check((m, l) => ctx.ui.notify(m, l), 25_000);
 			} catch {
 				/* ctx retired by a session replacement */
 			}
-		}, 180_000);
+		}, 30_000);
 		poll.unref?.();
 	});
 	pi.on("session_shutdown", async () => clearInterval(poll));

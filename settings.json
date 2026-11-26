@@ -50,6 +50,7 @@
     "ext/output-trim.ts",
     "ext/cost-watch.ts",
     "ext/quota-fallback.ts",
+    "ext/codex-accounts.ts",
     "ext/task-classifier.ts",
     "ext/fresh-chat.ts",
     "ext/swarm-gate.ts",
@@ -159,7 +160,7 @@
     "anthropic/claude-opus-5-5",
     "anthropic/claude-opus-4-8",
     "anthropic/claude-sonnet-5-5",
-    "openai/gpt-6.1-sol"
+    "openai-codex/gpt-6.1-sol"
   ],
   "extensionChangelogVersions": {
     "{\"source\":\"npm:pi-subagents@0.90.0\",\"scope\":\"user\"}": "0.90.0"
