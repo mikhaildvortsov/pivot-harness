@@ -75,7 +75,22 @@ export default function (pi: ExtensionAPI) {
 			/* balance endpoint unreachable: the request path handles real failures */
 		}
 	};
-	pi.on("session_start", async (_e, ctx) => void check((m, l) => ctx.ui.notify(m, l)));
+	// The footer balance used to go stale in a long autonomous run (it was refreshed only at start, before a prompt and after a settled task):
+	// poll every 3 minutes while the session lives, so it tracks the real balance within a few cents.
+	let poll: ReturnType<typeof setInterval> | undefined;
+	pi.on("session_start", async (_e, ctx) => {
+		void check((m, l) => ctx.ui.notify(m, l));
+		clearInterval(poll);
+		poll = setInterval(() => {
+			try {
+				void check((m, l) => ctx.ui.notify(m, l), 150_000);
+			} catch {
+				/* ctx retired by a session replacement */
+			}
+		}, 180_000);
+		poll.unref?.();
+	});
+	pi.on("session_shutdown", async () => clearInterval(poll));
 	pi.on("before_agent_start", async (_e, ctx) => void check((m, l) => ctx.ui.notify(m, l)));
 	// Footer shows the balance: refresh it after each finished task (at most once a minute).
 	pi.on("agent_settled", async (_e, ctx) => void check((m, l) => ctx.ui.notify(m, l), 60_000));

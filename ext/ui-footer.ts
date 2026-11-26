@@ -153,19 +153,22 @@ export default function (pi: ExtensionAPI) {
 		childFiles.clear();
 		taskStartIdx = ctx.sessionManager.getBranch().length;
 		let cacheKey = "";
-		let sums = { tIn: 0, tOut: 0, tCache: 0, tCost: 0, sCost: 0 };
+		let sums = { tIn: 0, tOut: 0, tCache: 0, tCost: 0, sCost: 0, sSub: 0 };
 
 		const compute = () => {
 			const branch = ctx.sessionManager.getBranch();
 			const key = `${ctx.sessionManager.getLeafId()}:${branch.length}:${taskStartIdx}`;
 			if (key === cacheKey) return sums;
 			cacheKey = key;
-			sums = { tIn: 0, tOut: 0, tCache: 0, tCost: 0, sCost: 0 };
+			sums = { tIn: 0, tOut: 0, tCache: 0, tCost: 0, sCost: 0, sSub: 0 };
 			branch.forEach((entry, i) => {
 				if (entry.type !== "message" || entry.message.role !== "assistant") return;
 				const u = (entry.message as AssistantMessage).usage;
 				if (!u) return;
 				sums.sCost += u.cost?.total ?? 0;
+				// subscription models (Anthropic, ChatGPT) are priced at API list prices by pi but are not billed per token: show them apart from real money
+				const prov = (entry.message as AssistantMessage).provider;
+				if (prov === "anthropic" || prov === "openai-codex") sums.sSub += u.cost?.total ?? 0;
 				if (i >= taskStartIdx) {
 					sums.tIn += u.input;
 					sums.tOut += u.output;
@@ -264,7 +267,7 @@ export default function (pi: ExtensionAPI) {
 					const kidCost = Math.max(childCost, diskCost);
 					const kidTok = Math.max(childTokens, diskTokens);
 					const subTok = kidTok > 0 ? theme.fg("dim", ` +подагенты ${fmtTokens(kidTok)}`) : "";
-					const cost = theme.fg("dim", "задача ") + theme.fg("warning", fmtMoney(s.tCost + Math.max(0, kidCost - taskKidBase))) + theme.fg("dim", "  сессия ") + theme.fg("warning", fmtMoney(s.sCost + kidCost));
+					const cost = theme.fg("dim", "задача ") + theme.fg("warning", fmtMoney(s.tCost + Math.max(0, kidCost - taskKidBase))) + theme.fg("dim", "  сессия ") + theme.fg("warning", fmtMoney(s.sCost + kidCost)) + (s.sSub > 0.01 ? theme.fg("dim", ` (подписка ${fmtMoney(s.sSub)})`) : "");
 					const bal = balance
 						? theme.fg("dim", "NanoGPT ") + theme.fg(balance.level === "ok" ? "success" : balance.level === "low" ? "warning" : "error", `$${balance.usd.toFixed(2)}`)
 						: theme.fg("dim", "NanoGPT —");
