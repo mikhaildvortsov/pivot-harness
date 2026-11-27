@@ -129,7 +129,7 @@
         {
           "id": "deepseek/deepseek-v4.1-flash-1017:thinking",
           "name": "DeepSeek V4.1 Flash 1017 (thinking)",
-          "reasoning": false,
+          "reasoning": true,
           "input": [
             "text"
           ],

@@ -96,8 +96,9 @@ export default function (pi: ExtensionAPI) {
 				}
 				throw new Error("router: no model of the chain is configured in models.json");
 			};
-			// NanoGPT picks thinking by model id. Gonka GLM in thinking mode prints tool calls as raw text, so it always runs with thinking off.
+			// NanoGPT selects the Thinking variant by id and its depth by effort. Other NanoGPT models and GLM keep thinking off.
 			const withLevel = (model: { provider: string; id: string }, level: typeof request.thinkingLevel) =>
+				(model.provider === NG && model.id === DS_THINK.id) ? level :
 				model.provider.startsWith(NG) || /glm/i.test(model.id) ? "off" : level;
 
 			const level = request.thinkingLevel;
@@ -128,7 +129,8 @@ export default function (pi: ExtensionAPI) {
 				// A screenshot from a tool is read by the vision model for one step; the rest of the turn returns to the cheaper text model.
 				// (An image the user attached stays with the vision model for the whole turn: the text model would only see a placeholder.)
 				const backToText = !image && CHAIN_IMAGE.some((r) => r.provider === prev.provider && r.id === prev.id) && !promptHasImage(request.messages);
-				if (canSeeImages && !backToText) return { model: prev, thinkingLevel: request.previous?.thinkingLevel ?? withLevel(prev, level), state: reset };
+				const changedVariant = (prev.id === DS_PLAIN.id || prev.id === DS_THINK.id) && prev.provider === NG && prev.id !== (level === "off" ? DS_PLAIN.id : DS_THINK.id);
+				if (canSeeImages && !backToText && !changedVariant) return { model: prev, thinkingLevel: withLevel(prev, level), state: reset };
 			}
 			if (request.reason === "direct") {
 				const m = pick(CHAIN_PLAIN);
