@@ -107,7 +107,6 @@ const PROBES = [
 	["nanogpt/deepseek/deepseek-v4.1-flash-1017", "NanoGPT DeepSeek 1017"],
 	["nanogpt/deepseek/deepseek-v4.1-flash-1017:thinking", "NanoGPT DeepSeek 1017 thinking"],
 	["nanogpt/z-ai/glm-5.3-flash", "NanoGPT GLM Flash"],
-	["nanogpt/qwen/qwen3-coder-next", "NanoGPT Qwen Coder"],
 	["gonka/zai-org/GLM-5.3-Flash", "Gonka GLM"],
 	["gonka/deepseek-ai/DeepSeek-V4-Flash-0731", "Gonka DeepSeek"],
 	["anthropic/claude-opus-5-5", "Opus 5.5"],
@@ -215,7 +214,7 @@ async function checkNano() {
 	try {
 		const cat = await (await fetch("https://nano-gpt.com/api/v1/models?detailed=true", { signal: AbortSignal.timeout(30_000) })).json();
 		const ids = new Set(cat.data.map((m) => m.id));
-		const want = ["deepseek/deepseek-v4.1-flash-1017", "deepseek/deepseek-v4.1-flash-1017:thinking", "z-ai/glm-5.3-flash", "qwen/qwen3-coder-next"];
+		const want = ["deepseek/deepseek-v4.1-flash-1017", "deepseek/deepseek-v4.1-flash-1017:thinking", "z-ai/glm-5.3-flash"];
 		const gone = want.filter((i) => !ids.has(i));
 		add("NanoGPT model ids", gone.length ? "fail" : "ok", gone.length ? `no longer in catalog: ${gone.join(", ")}` : "all router-chain ids exist");
 		const bal = await (await fetch("https://nano-gpt.com/api/check-balance", { method: "POST", headers: { "x-api-key": key }, signal: AbortSignal.timeout(15_000) })).json();

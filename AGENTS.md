@@ -1,5 +1,7 @@
 # Global agent rules (pi harness)
 
+NanoGPT: use only DeepSeek and GLM. Preserve Anthropic/OpenAI subscription routing.
+
 ## 0. Local overlays — highest priority
 Before any work, check `./AGENTS.local.md` (repo root) and `~/.pi/agent/local/AGENTS.local.md`. If either exists, read it with the read tool and apply it; on conflict it overrides this file. Repo `AGENTS.md` overrides this file too.
 

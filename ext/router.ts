@@ -1,5 +1,5 @@
 // Virtual model router/auto: picks the physical model per request and fails over along a chain.
-//   text:   NanoGPT DeepSeek V4.1 Flash 1017 pinned to Runware (fastest in the 2026-11-24 benchmark; subagents start with the cheaper direct NanoGPT route) → same, auto provider → NanoGPT Qwen3 Coder Next → Gonka GLM-5.3 Flash → Gonka DeepSeek V4 Flash
+//   text: NanoGPT DeepSeek plain/thinking → Gonka DeepSeek → Gonka GLM
 //   images: NanoGPT GLM-5.3 Flash → Gonka GLM-5.3 Flash
 // pi thinking level "off" uses the plain DeepSeek variant, any other level the ":thinking" variant.
 // Failures: a transient error (timeout, 5xx, 429, reset) retries the same model once, then benches it for BENCH_MS and moves
@@ -12,14 +12,13 @@ const NG = "nanogpt";
 const GK = "gonka";
 const DS_PLAIN: Ref = { provider: NG, id: "deepseek/deepseek-v4.1-flash-1017" };
 const DS_THINK: Ref = { provider: NG, id: "deepseek/deepseek-v4.1-flash-1017:thinking" };
-const QWEN: Ref = { provider: NG, id: "qwen/qwen3-coder-next" };
 const NG_GLM: Ref = { provider: NG, id: "z-ai/glm-5.3-flash" };
 const GK_GLM: Ref = { provider: GK, id: "zai-org/GLM-5.3-Flash" };
 const GK_DS: Ref = { provider: GK, id: "deepseek-ai/DeepSeek-V4-Flash-0731" };
 
-// NanoGPT direct only (Runware dropped on purpose, to compare the bill); Qwen3 Coder is about 4x the price per step of DeepSeek (measured: $0.0035 vs $0.0009), so it is the last resort, behind the Gonka reserve.
-const CHAIN_PLAIN = [DS_PLAIN, GK_DS, GK_GLM, QWEN];
-const CHAIN_THINK = [DS_THINK, GK_DS, GK_GLM, QWEN];
+// NanoGPT is limited to DeepSeek and GLM; Gonka keeps the same model families in reserve.
+const CHAIN_PLAIN = [DS_PLAIN, GK_DS, GK_GLM];
+const CHAIN_THINK = [DS_THINK, GK_DS, GK_GLM];
 const CHAIN_IMAGE = [NG_GLM, GK_GLM];
 
 const BENCH_MS = 10 * 60_000;
