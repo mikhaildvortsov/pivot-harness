@@ -146,7 +146,7 @@ export default function (pi: ExtensionAPI) {
 		].join("\n\n");
 		const r = await pi.exec(
 			"env",
-			["PI_OPUS_CHILD=1", "PI_SUBAGENT_CHILD=1", "PI_WATCHDOG_MAINTAINER=1", process.execPath, process.argv[1] ?? "pi", "-ne", "--no-session", "--no-tools", "-p", "--model", VERIFIER, "--thinking", "medium", prompt],
+			["PI_OPUS_CHILD=1", "PI_SUBAGENT_CHILD=1", "PI_WATCHDOG_MAINTAINER=1", process.execPath, process.argv[1] ?? "pi", "-ne", "--no-session", "--no-tools", "--no-skills", "--no-context-files", "-p", "--model", VERIFIER, "--thinking", "medium", prompt],
 			{ cwd, timeout: VERIFY_TIMEOUT_MS },
 		);
 		const json = r.stdout.match(/\{[\s\S]*\}/)?.[0];
